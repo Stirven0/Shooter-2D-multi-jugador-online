@@ -40,7 +40,7 @@ public class ScreenManager {
 
     private void startAutoLogin() {
         System.out.println("[AUTO] Auto-login as " + autoLogin.getUsername() + " register=" + autoLogin.isAutoRegister());
-        new Thread(() -> {
+        Thread t = new Thread(() -> {
             boolean ok = gameClient.connect();
             if (ok) {
                 javafx.application.Platform.runLater(() -> {
@@ -49,7 +49,9 @@ public class ScreenManager {
             } else {
                 System.err.println("[AUTO] Failed to connect to server");
             }
-        }).start();
+        }, "auto-login-thread");
+        t.setDaemon(true);
+        t.start();
     }
 
     public void showLobby() {
@@ -115,12 +117,42 @@ public class ScreenManager {
         return null;
     }
 
+    public void cleanup() {
+        if (mcpServer != null) {
+            mcpServer.stop();
+            mcpServer = null;
+        }
+        if (gameClient != null) {
+            gameClient.logout();
+        }
+    }
+
     public String getCurrentScreenName() {
         return gameClient.getCurrentScreen();
     }
 
     public void enableMcpMode() {
-        System.out.println("[SCREEN] MCP mode enabled");
+        System.out.println("[SCREEN] MCP mode enabled - starting MCP server");
+        if (mcpServer != null) return;
+        mcpServer = new ClientMcpServer(gameClient, gameClient.getInputHandler(),
+            gameClient.getRenderer(), null, stage);
+        mcpServer.start();
+    }
+
+    public boolean toggleMcpMode() {
+        if (mcpServer != null) {
+            mcpServer.stop();
+            mcpServer = null;
+            System.out.println("[SCREEN] MCP mode disabled");
+            return false;
+        } else {
+            enableMcpMode();
+            return true;
+        }
+    }
+
+    public boolean isMcpEnabled() {
+        return mcpServer != null;
     }
 
     public ClientMcpServer getMcpServer() { return mcpServer; }

@@ -10,6 +10,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
+import javafx.scene.control.Separator;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -26,8 +27,13 @@ public class LoginScreen {
     private boolean registerMode = false;
     private Hyperlink toggleLink;
     private VBox helpOverlay;
+    private VBox settingsOverlay;
     private Button helpBtn;
     private Button exitBtn;
+    private TextField hostField;
+    private TextField portField;
+    private Button mcpToggleBtn;
+    private Label mcpStatusLabel;
 
     private static final String INPUT_STYLE = "-fx-background-color: #21262d; -fx-text-fill: #f0f6fc; -fx-prompt-text-fill: #484f58; -fx-font-size: 14px; -fx-padding: 10 14; -fx-background-radius: 6; -fx-border-color: #30363d; -fx-border-radius: 6; -fx-border-width: 1; -fx-max-width: 260;";
 
@@ -102,11 +108,18 @@ public class LoginScreen {
             helpOverlay.setManaged(true);
         });
 
+        Button settingsBtn = new Button("Ajustes");
+        Styles.setBtnStyle(settingsBtn, Styles.BG_INPUT, Styles.BORDER);
+        settingsBtn.setOnAction(e -> {
+            settingsOverlay.setVisible(true);
+            settingsOverlay.setManaged(true);
+        });
+
         exitBtn = new Button("Salir");
         Styles.setBtnStyle(exitBtn, Styles.DANGER, Styles.DANGER_HOVER);
         exitBtn.setOnAction(e -> Platform.exit());
 
-        bottomRow.getChildren().addAll(helpBtn, exitBtn);
+        bottomRow.getChildren().addAll(helpBtn, settingsBtn, exitBtn);
 
         form.getChildren().addAll(title, subtitle, user, pass, btn, toggleLink, status, bottomRow);
 
@@ -114,7 +127,11 @@ public class LoginScreen {
         helpOverlay.setVisible(false);
         helpOverlay.setManaged(false);
 
-        StackPane centerStack = new StackPane(form, helpOverlay);
+        settingsOverlay = createSettingsOverlay();
+        settingsOverlay.setVisible(false);
+        settingsOverlay.setManaged(false);
+
+        StackPane centerStack = new StackPane(form, helpOverlay, settingsOverlay);
         centerStack.setStyle("-fx-background-color: linear-gradient(to bottom, #0d1117, #161b22);");
 
         BorderPane root = new BorderPane();
@@ -158,6 +175,82 @@ public class LoginScreen {
         });
 
         overlay.getChildren().addAll(helpTitle, textBox, closeBtn);
+        return overlay;
+    }
+
+    private VBox createSettingsOverlay() {
+        VBox overlay = new VBox(12);
+        overlay.setAlignment(Pos.CENTER);
+        overlay.setStyle("-fx-background-color: rgba(13, 17, 23, 0.92); -fx-padding: 30; -fx-background-radius: 8;");
+        overlay.setMaxWidth(360);
+
+        Label settingsTitle = new Label("AJUSTES - MCP");
+        settingsTitle.setStyle("-fx-text-fill: #f0f6fc; -fx-font-size: 20px; -fx-font-weight: bold;");
+
+        VBox fields = new VBox(8);
+        fields.setAlignment(Pos.CENTER);
+
+        hostField = new TextField(ClientConfig.getServerHost());
+        hostField.setPromptText("Servidor host");
+        hostField.setStyle("-fx-background-color: #21262d; -fx-text-fill: #f0f6fc; -fx-prompt-text-fill: #484f58; -fx-font-size: 13px; -fx-padding: 8 12; -fx-background-radius: 6; -fx-border-color: #30363d; -fx-border-radius: 6; -fx-border-width: 1; -fx-max-width: 280;");
+
+        portField = new TextField(String.valueOf(ClientConfig.getServerPort()));
+        portField.setPromptText("Puerto");
+        portField.setStyle(hostField.getStyle());
+
+        Label mcpLabel = new Label("Conexión MCP (stdio):");
+        mcpLabel.setStyle("-fx-text-fill: #8b949e; -fx-font-size: 13px;");
+
+        mcpStatusLabel = new Label("MCP: desactivado");
+        mcpStatusLabel.setStyle("-fx-text-fill: #8b949e; -fx-font-size: 12px;");
+
+        mcpToggleBtn = new Button("Activar MCP");
+        Styles.setBtnStyle(mcpToggleBtn, Styles.BG_INPUT, Styles.BORDER);
+        mcpToggleBtn.setMaxWidth(200);
+        mcpToggleBtn.setOnAction(e -> {
+            ScreenManager sm = gameClient.getScreenManager();
+            boolean on = sm.toggleMcpMode();
+            mcpToggleBtn.setText(on ? "Desactivar MCP" : "Activar MCP");
+            mcpStatusLabel.setText(on ? "MCP: activado" : "MCP: desactivado");
+            mcpStatusLabel.setStyle(on ?
+                "-fx-text-fill: #3fb950; -fx-font-size: 12px;" :
+                "-fx-text-fill: #8b949e; -fx-font-size: 12px;");
+        });
+
+        Button saveBtn = new Button("Guardar y aplicar");
+        Styles.setBtnStyle(saveBtn, Styles.ACCENT, Styles.ACCENT_HOVER);
+        saveBtn.setMaxWidth(280);
+        saveBtn.setOnAction(e -> {
+            String host = hostField.getText().trim();
+            String port = portField.getText().trim();
+            if (!host.isEmpty() && !port.isEmpty()) {
+                ClientConfig.setServerUrl(host, Integer.parseInt(port));
+            }
+            settingsOverlay.setVisible(false);
+            settingsOverlay.setManaged(false);
+        });
+
+        Button closeBtn = new Button("Volver");
+        Styles.setBtnStyle(closeBtn, Styles.ACCENT, Styles.ACCENT_HOVER);
+        closeBtn.setOnAction(e -> {
+            settingsOverlay.setVisible(false);
+            settingsOverlay.setManaged(false);
+        });
+
+        HBox btnRow = new HBox(10);
+        btnRow.setAlignment(Pos.CENTER);
+        btnRow.getChildren().addAll(saveBtn, closeBtn);
+
+        fields.getChildren().addAll(
+            new Label("Servidor:") {{
+                setStyle("-fx-text-fill: #f0f6fc; -fx-font-size: 13px; -fx-font-weight: bold;");
+            }},
+            hostField, portField,
+            new Separator() {{ setStyle("-fx-max-width: 280;"); }},
+            mcpLabel, mcpStatusLabel, mcpToggleBtn
+        );
+
+        overlay.getChildren().addAll(settingsTitle, fields, btnRow);
         return overlay;
     }
 

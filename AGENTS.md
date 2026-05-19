@@ -10,7 +10,8 @@ mvn clean install -DskipTests              # build & install todo (5 módulos)
 java -jar server/target/server-1.0-SNAPSHOT.jar   # servidor :8080
 mvn javafx:run -pl client                  # lanzar cliente
 java -jar mcp-bridge/target/mcp-bridge-1.0-SNAPSHOT.jar --username ai_player  # MCP bridge
-mvn javafx:run -pl client -Dexec.args="--mcp"  # cliente en modo MCP
+tools/launch_mcp_client.cmd --mcp --username player --password pass --host localhost --port 8080  # cliente MCP directo (sin Maven)
+java --module-path ... --add-modules ... -classpath ... com.aa.client.Main --mcp --host 0.0.0.0 --port 8080  # o via java directo
 python tools/test_client.py                 # bot headless (pip install websocket-client)
 python tools/load_test.py 5                 # stress test (5 bots)
 ```

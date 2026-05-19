@@ -116,12 +116,15 @@ public class GameScreen {
         };
         gameLoop.start();
 
-        if (gameClient.getScreenManager().getMcpServer() == null) {
-            ClientMcpServer mcpServer = new ClientMcpServer(
+        ClientMcpServer mcpSrv = gameClient.getScreenManager().getMcpServer();
+        if (mcpSrv != null) {
+            mcpSrv.setCanvas(canvas);
+        } else {
+            ClientMcpServer mcpNew = new ClientMcpServer(
                 gameClient, gameClient.getInputHandler(),
                 gameClient.getRenderer(), canvas, stage);
-            gameClient.getScreenManager().setMcpServer(mcpServer);
-            mcpServer.start();
+            gameClient.getScreenManager().setMcpServer(mcpNew);
+            mcpNew.start();
         }
 
         return scene;
@@ -228,6 +231,30 @@ public class GameScreen {
         slidersBox.getChildren().add(buildVolumeRow("Volumen General", AudioManager.getMasterVolume(), AudioManager::setMasterVolume));
         slidersBox.getChildren().add(buildVolumeRow("Volumen Efectos", AudioManager.getSfxVolume(), AudioManager::setSfxVolume));
         slidersBox.getChildren().add(buildVolumeRow("Volumen Música", AudioManager.getMusicVolume(), AudioManager::setMusicVolume));
+
+        Button mcpBtn = new Button();
+        mcpBtn.setMaxWidth(280);
+        String mcpBase = Styles.button(Styles.BG_INPUT, Styles.BORDER);
+        String mcpHover = Styles.button(Styles.BORDER, Styles.BORDER);
+        Runnable updateMcpBtn = () -> {
+            boolean on = gameClient.getScreenManager().isMcpEnabled();
+            mcpBtn.setText(on ? "MCP: activado" : "MCP: desactivado");
+            mcpBtn.setStyle(on ? Styles.button("#1f6feb", "#58a6ff") : mcpBase);
+        };
+        updateMcpBtn.run();
+        mcpBtn.setStyle(mcpBase);
+        mcpBtn.setOnMouseEntered(e -> mcpBtn.setStyle(mcpHover));
+        mcpBtn.setOnMouseExited(e -> { if (!gameClient.getScreenManager().isMcpEnabled()) mcpBtn.setStyle(mcpBase); });
+        mcpBtn.setOnAction(e -> {
+            gameClient.getScreenManager().toggleMcpMode();
+            updateMcpBtn.run();
+            if (gameClient.getScreenManager().isMcpEnabled()) {
+                mcpBtn.setStyle(Styles.button("#1f6feb", "#58a6ff"));
+            } else {
+                mcpBtn.setStyle(mcpBase);
+            }
+        });
+        slidersBox.getChildren().add(mcpBtn);
 
         Button closeBtn = btn("Volver", Styles.ACCENT, Styles.ACCENT_HOVER, e -> toggleSettings());
         overlay.getChildren().addAll(title, slidersBox, closeBtn);

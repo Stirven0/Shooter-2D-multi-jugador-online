@@ -2,20 +2,41 @@ package com.aa.client;
 
 import com.aa.client.ui.AutoLoginConfig;
 import com.aa.client.ui.ScreenManager;
+import com.aa.client.util.ClientConfig;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.stage.Stage;
 
 public class Main extends Application {
 
     private static boolean enableMcp = false;
     private static AutoLoginConfig autoLogin;
+    private ScreenManager screens;
 
     @Override
     public void start(Stage stage) {
-        ScreenManager screens = new ScreenManager(autoLogin);
+        screens = new ScreenManager(autoLogin);
         screens.init(stage);
+
+        stage.setOnCloseRequest(e -> {
+            cleanup();
+            Platform.exit();
+        });
+
         if (enableMcp) {
             screens.enableMcpMode();
+        }
+    }
+
+    @Override
+    public void stop() {
+        cleanup();
+    }
+
+    private void cleanup() {
+        if (screens != null) {
+            screens.cleanup();
+            screens = null;
         }
     }
 
@@ -37,6 +58,14 @@ public class Main extends Application {
                 case "--auto-join" -> autoJoin = true;
                 case "--x" -> x = Integer.parseInt(args[++i]);
                 case "--y" -> y = Integer.parseInt(args[++i]);
+                case "--host" -> {
+                    String h = args[++i];
+                    ClientConfig.setServerHost(h);
+                }
+                case "--port" -> {
+                    String p = args[++i];
+                    ClientConfig.setServerPort(p);
+                }
             }
         }
 

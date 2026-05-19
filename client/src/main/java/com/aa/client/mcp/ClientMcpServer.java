@@ -49,7 +49,7 @@ public class ClientMcpServer {
     private final GameClient gameClient;
     private final InputHandler inputHandler;
     private final Renderer renderer;
-    private final Canvas canvas;
+    private Canvas canvas;
     private final Stage stage;
     private final ScreenManager screenManager;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -66,11 +66,15 @@ public class ClientMcpServer {
         this.screenManager = gameClient.getScreenManager();
     }
 
+    public void setCanvas(Canvas canvas) {
+        this.canvas = canvas;
+    }
+
     public void start() {
         if (running) return;
         running = true;
 
-        new Thread(() -> {
+        Thread thread = new Thread(() -> {
             try {
                 McpJsonMapper jsonMapper = McpJsonMapper.getDefault();
 
@@ -83,12 +87,16 @@ public class ClientMcpServer {
 
                 registerTools();
                 System.err.println("[CLIENT-MCP] MCP Server ready on stdio");
-                Thread.currentThread().join();
+                while (running) {
+                    try { Thread.sleep(1000); } catch (InterruptedException ignored) {}
+                }
             } catch (Exception e) {
                 System.err.println("[CLIENT-MCP] Error: " + e.getMessage());
                 e.printStackTrace();
             }
-        }, "client-mcp-thread").start();
+        }, "client-mcp-thread");
+        thread.setDaemon(true);
+        thread.start();
     }
 
     public void stop() {
@@ -392,22 +400,22 @@ public class ClientMcpServer {
                     case "SHIFT" -> simulateKey(KeyCode.SHIFT, action);
                     case "Q" -> {
                         inputHandler.triggerSwapWeapon();
-                        Platform.runLater(() ->
+                        if (canvas != null) Platform.runLater(() ->
                             gameClient.update(inputHandler, canvas.getGraphicsContext2D()));
                     }
                     case "E" -> {
                         inputHandler.triggerSkillSlot0();
-                        Platform.runLater(() ->
+                        if (canvas != null) Platform.runLater(() ->
                             gameClient.update(inputHandler, canvas.getGraphicsContext2D()));
                     }
                     case "F" -> {
                         inputHandler.triggerSkillSlot1();
-                        Platform.runLater(() ->
+                        if (canvas != null) Platform.runLater(() ->
                             gameClient.update(inputHandler, canvas.getGraphicsContext2D()));
                     }
                     case "CLICK" -> {
                         inputHandler.triggerShoot();
-                        Platform.runLater(() ->
+                        if (canvas != null) Platform.runLater(() ->
                             gameClient.update(inputHandler, canvas.getGraphicsContext2D()));
                     }
                     default -> {
@@ -432,6 +440,7 @@ public class ClientMcpServer {
             }
         }
 
+        if (canvas == null) return;
         javafx.scene.input.KeyEvent event = new javafx.scene.input.KeyEvent(
             type, code.getChar(), code.getName(), code, false, false, false, false);
         if (canvas.getScene() != null) {

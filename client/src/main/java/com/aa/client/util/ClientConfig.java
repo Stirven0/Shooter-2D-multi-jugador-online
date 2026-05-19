@@ -9,7 +9,18 @@ public final class ClientConfig {
     private ClientConfig() {}
 
     /** URL del servidor WebSocket al que se conecta el cliente. */
-    public static final String SERVER_URL = "ws://localhost:8080";
+    private static String serverHost = "localhost";
+    private static int serverPort = 8080;
+
+    public static String getServerUrl() { return "ws://" + serverHost + ":" + serverPort; }
+    public static String getServerHost() { return serverHost; }
+    public static int getServerPort() { return serverPort; }
+    public static void setServerHost(String host) { serverHost = host; }
+    public static void setServerPort(String port) { serverPort = Integer.parseInt(port); }
+    public static void setServerUrl(String host, int port) {
+        serverHost = host;
+        serverPort = port;
+    }
     /** Título de la ventana de la aplicación. */
     public static final String TITLE = "Shooter Client";
     /** Ancho por defecto de la ventana en píxeles. */

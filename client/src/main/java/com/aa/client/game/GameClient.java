@@ -54,7 +54,7 @@ public class GameClient implements ClientMessageListener {
     }
 
     private NetworkClient createNetworkClient() {
-        return new NetworkClient(URI.create(ClientConfig.SERVER_URL), this);
+        return new NetworkClient(URI.create(ClientConfig.getServerUrl()), this);
     }
 
     public String getCurrentRoomId() { return currentRoomId; }
@@ -66,7 +66,7 @@ public class GameClient implements ClientMessageListener {
 
     public boolean connect() {
         try {
-            System.out.println("[CLIENT] Conectando a " + ClientConfig.SERVER_URL);
+            System.out.println("[CLIENT] Conectando a " + ClientConfig.getServerUrl());
             if (network.isClosed()) {
                 System.out.println("[CLIENT] Recreando NetworkClient (estaba cerrado)");
                 network = createNetworkClient();
