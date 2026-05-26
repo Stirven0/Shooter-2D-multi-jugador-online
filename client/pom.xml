@@ -40,6 +40,11 @@
             <artifactId>javafx-fxml</artifactId>
             <version>25</version>
         </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-swing</artifactId>
+            <version>25</version>
+        </dependency>
 
         <!-- WebSocket client -->
         <dependency>
@@ -51,6 +56,12 @@
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>2.10.1</version>
+        </dependency>
+
+        <!-- MCP SDK -->
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp</artifactId>
         </dependency>
 
         <!-- TestFX -->
@@ -97,7 +108,8 @@
                 <version>0.0.8</version>
                 <configuration>
                     <mainClass>com.aa.client.Main</mainClass>
-                    <launcher>app</launcher>        
+                    <launcher>app</launcher>
+                    <fork>false</fork>
                 </configuration>
             </plugin>
             <plugin>

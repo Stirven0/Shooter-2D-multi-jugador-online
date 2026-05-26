@@ -28,7 +28,7 @@ public enum MessageType {
     SWAP_WEAPON,     // Cambiar arma primaria/secundaria
     PICKUP,          // Recoger arma o power-up del mapa
     ROTATE_INPUT,    // Cambio de dirección
-    USE_ABILITY,     // Habilidad especial (futuro)
+    USE_SKILL,       // Activar habilidad del jugador
     
     // Estado del juego (Servidor → Cliente)
     GAME_STATE,      // Snapshot completo

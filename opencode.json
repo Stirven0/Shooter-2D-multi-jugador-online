@@ -1,0 +1,33 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md"],
+  "command": {
+    "build": {
+      "description": "Compilar todo el proyecto",
+      "template": "Ejecuta: mvn clean install -DskipTests"
+    },
+    "test-server": {
+      "description": "Tests del servidor",
+      "template": "Ejecuta: mvn test -pl server -Dtest=\"!*IntegrationTest\""
+    },
+    "test-client": {
+      "description": "Tests UI del cliente",
+      "template": "Ejecuta: mvn test -pl client"
+    },
+    "run-server": {
+      "description": "Iniciar servidor WebSocket en puerto 8080",
+      "template": "Ejecuta: java -jar server/target/server-1.0-SNAPSHOT.jar"
+    },
+    "run-client": {
+      "description": "Iniciar cliente JavaFX",
+      "template": "Ejecuta: mvn javafx:run -pl client"
+    }
+  },
+  "mcp": {
+    "game-client": {
+      "type": "local",
+      "command": ["nc", "localhost", "4567"],
+      "enabled": true
+    }
+  }
+}

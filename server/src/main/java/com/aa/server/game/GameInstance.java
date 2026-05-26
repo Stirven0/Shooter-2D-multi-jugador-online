@@ -2,6 +2,7 @@ package com.aa.server.game;
 
 import com.aa.server.game.engine.GameEngine;
 import com.aa.server.game.engine.GameLoop;
+import com.aa.server.game.system.SkillSystem;
 import com.aa.server.game.map.GameMap;
 import com.aa.server.network.ConnectionManager;
 import com.aa.server.room.Room;
@@ -63,6 +64,7 @@ public class GameInstance {
 
         for (String playerId : room.getPlayerIds()) {
             Player p = new Player(playerId, playerId, randomSpawn());
+            p.setSkillSlots(SkillSystem.createDefaultSkills());
             state.addPlayer(p);
         }
 

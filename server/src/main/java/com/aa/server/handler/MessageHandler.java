@@ -6,6 +6,7 @@ import com.aa.server.game.GameInstanceManager;
 import com.aa.server.game.PlayerInput;
 import com.aa.server.network.ClientConnection;
 import com.aa.server.network.ConnectionManager;
+import com.aa.shared.message.UseSkillMessage;
 import com.aa.server.room.Room;
 import com.aa.server.room.RoomManager;
 import com.aa.server.util.ServerConfig;
@@ -103,6 +104,7 @@ public class MessageHandler {
             case MOVE_INPUT -> handleMove(client, json);
             case SHOOT_INPUT -> handleShoot(client, json);
             case SWAP_WEAPON -> handleSwapWeapon(client);
+            case USE_SKILL -> handleUseSkill(client, json);
             case PING, PONG -> {
                 /* heartbeat, no hacer nada */
             }
@@ -186,6 +188,7 @@ public class MessageHandler {
         update.setRoomId(room.getRoomId());
         update.setPlayerIds(new ArrayList<>(room.getPlayerIds()));
         update.setStatus(room.getStatus().name());
+        update.setHostId(room.getHostId());
 
         for (String pid : room.getPlayerIds()) {
             ClientConnection c = connectionManager.getByPlayerId(pid);
@@ -293,6 +296,13 @@ public class MessageHandler {
         game.queueInput(
             new PlayerInput(client.getPlayerId(), MessageType.SHOOT_INPUT, msg)
         );
+    }
+
+    private void handleUseSkill(ClientConnection client, String json) {
+        GameInstance game = gameInstanceManager.getGameByPlayer(client.getPlayerId());
+        if (game == null) return;
+        UseSkillMessage msg = JsonUtil.fromJson(json, UseSkillMessage.class);
+        game.queueInput(new PlayerInput(client.getPlayerId(), MessageType.USE_SKILL, msg));
     }
 
     /** Cambia el slot de arma activo del jugador (primaria ↔ secundaria). */

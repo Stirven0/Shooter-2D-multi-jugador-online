@@ -3,6 +3,7 @@ package com.aa.shared.state;
 import com.aa.shared.model.Obstacle;
 import com.aa.shared.model.Player;
 import com.aa.shared.model.Bullet;
+import com.aa.shared.model.SkillSlot;
 import com.aa.shared.model.WeaponPickup;
 import com.aa.shared.model.PowerUpPickup;
 import java.util.ArrayList;
@@ -168,6 +169,19 @@ public class GameState {
             pCopy.setCurrentWeaponSlot(p.getCurrentWeaponSlot());
             pCopy.setShield(p.getShield());
             pCopy.setUpgradePoints(p.getUpgradePoints());
+            SkillSlot[] slots = p.getSkillSlots();
+            if (slots != null) {
+                SkillSlot[] slotsCopy = new SkillSlot[slots.length];
+                for (int si = 0; si < slots.length; si++) {
+                    if (slots[si] != null) {
+                        SkillSlot s = new SkillSlot(slots[si].getSkill());
+                        s.setCooldownRemaining(slots[si].getCooldownRemaining());
+                        s.setActive(slots[si].isActive());
+                        slotsCopy[si] = s;
+                    }
+                }
+                pCopy.setSkillSlots(slotsCopy);
+            }
             copy.addPlayer(pCopy);
         }
         

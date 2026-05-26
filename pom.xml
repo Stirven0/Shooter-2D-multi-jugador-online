@@ -18,6 +18,7 @@
     <module>shared</module>
     <module>server</module>
     <module>client</module>
+    <module>mcp-bridge</module>
   </modules>
   
   <dependencies>
@@ -36,6 +37,13 @@
         <artifactId>junit</artifactId>
         <version>3.8.1</version>
         <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>io.modelcontextprotocol.sdk</groupId>
+        <artifactId>mcp-bom</artifactId>
+        <version>0.17.2</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>

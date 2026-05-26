@@ -19,6 +19,7 @@ public class Player {
     private int currentWeaponSlot;
     private double shield;
     private int upgradePoints;
+    private SkillSlot[] skillSlots;
     
     // Constructor vacío necesario para deserialización JSON
     public Player() {
@@ -29,6 +30,7 @@ public class Player {
         this.alive = true;
         this.primaryWeapon = WeaponType.PISTOL;
         this.currentWeaponSlot = 0;
+        this.skillSlots = new SkillSlot[2];
     }
     
     public Player(String id, String username, Vector2 position) {
@@ -41,6 +43,7 @@ public class Player {
         this.alive = true;
         this.primaryWeapon = WeaponType.PISTOL;
         this.currentWeaponSlot = 0;
+        this.skillSlots = new SkillSlot[2];
     }
     
     // Getters y Setters
@@ -92,6 +95,9 @@ public class Player {
     
     public int getUpgradePoints() { return upgradePoints; }
     public void setUpgradePoints(int upgradePoints) { this.upgradePoints = upgradePoints; }
+    
+    public SkillSlot[] getSkillSlots() { return skillSlots; }
+    public void setSkillSlots(SkillSlot[] skillSlots) { this.skillSlots = skillSlots; }
     
     public void takeDamage(double damage) {
         if (shield > 0) {

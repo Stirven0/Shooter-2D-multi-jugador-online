@@ -26,6 +26,7 @@ public class LoginScreen {
     private boolean registerMode = false;
     private Hyperlink toggleLink;
     private VBox helpOverlay;
+    private SettingsOverlay settingsOverlay;
     private Button helpBtn;
     private Button exitBtn;
 
@@ -37,12 +38,27 @@ public class LoginScreen {
 
     public void setError(String msg) {
         Platform.runLater(() -> {
+            if (btn != null) btn.setDisable(false);
             if (status != null) {
                 status.setText(msg);
                 status.setStyle("-fx-text-fill: #f85149; -fx-font-size: 13px;");
             }
         });
     }
+
+    public String getErrorMessage() {
+        if (status != null) {
+            String text = status.getText();
+            String style = status.getStyle();
+            if (text != null && !text.isEmpty() && style != null && style.contains("#f85149")) {
+                return text;
+            }
+        }
+        return null;
+    }
+
+    public String getUsername() { return user != null ? user.getText() : null; }
+    public String getPassword() { return pass != null ? pass.getText() : null; }
 
     public Scene createScene(Stage stage) {
         VBox form = new VBox(12);
@@ -88,11 +104,15 @@ public class LoginScreen {
             helpOverlay.setManaged(true);
         });
 
+        Button settingsBtn = new Button("Ajustes");
+        Styles.setBtnStyle(settingsBtn, Styles.BG_INPUT, Styles.BORDER);
+        settingsBtn.setOnAction(e -> settingsOverlay.show());
+
         exitBtn = new Button("Salir");
         Styles.setBtnStyle(exitBtn, Styles.DANGER, Styles.DANGER_HOVER);
         exitBtn.setOnAction(e -> Platform.exit());
 
-        bottomRow.getChildren().addAll(helpBtn, exitBtn);
+        bottomRow.getChildren().addAll(helpBtn, settingsBtn, exitBtn);
 
         form.getChildren().addAll(title, subtitle, user, pass, btn, toggleLink, status, bottomRow);
 
@@ -100,7 +120,11 @@ public class LoginScreen {
         helpOverlay.setVisible(false);
         helpOverlay.setManaged(false);
 
-        StackPane centerStack = new StackPane(form, helpOverlay);
+        settingsOverlay = new SettingsOverlay(gameClient, stage, () -> {});
+        settingsOverlay.getRoot().setVisible(false);
+        settingsOverlay.getRoot().setManaged(false);
+
+        StackPane centerStack = new StackPane(form, helpOverlay, settingsOverlay.getRoot());
         centerStack.setStyle("-fx-background-color: linear-gradient(to bottom, #0d1117, #161b22);");
 
         BorderPane root = new BorderPane();

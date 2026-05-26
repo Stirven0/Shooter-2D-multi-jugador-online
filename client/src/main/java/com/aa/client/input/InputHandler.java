@@ -16,13 +16,21 @@ public class InputHandler {
     private double mouseScreenY;
     private volatile boolean mousePressed;
     private volatile boolean swapWeaponPressed;
+    private volatile boolean useSkill0Pressed;
+    private volatile boolean useSkill1Pressed;
 
     public void attach(Scene scene) {
         scene.setOnKeyPressed(e -> {
             keys.add(e.getCode());
             if (e.getCode() == KeyCode.Q) swapWeaponPressed = true;
+            if (e.getCode() == KeyCode.E) useSkill0Pressed = true;
+            if (e.getCode() == KeyCode.F) useSkill1Pressed = true;
         });
-        scene.setOnKeyReleased(e -> keys.remove(e.getCode()));
+        scene.setOnKeyReleased(e -> {
+            keys.remove(e.getCode());
+            if (e.getCode() == KeyCode.E) useSkill0Pressed = false;
+            if (e.getCode() == KeyCode.F) useSkill1Pressed = false;
+        });
         scene.setOnMouseMoved(e -> {
             mouseScreenX = e.getX();
             mouseScreenY = e.getY();
@@ -70,6 +78,32 @@ public class InputHandler {
     public boolean consumeSwapWeapon() {
         if (swapWeaponPressed) {
             swapWeaponPressed = false;
+            return true;
+        }
+        return false;
+    }
+
+    public void triggerSwapWeapon() { this.swapWeaponPressed = true; }
+    public void triggerSkillSlot0() { this.useSkill0Pressed = true; }
+    public void triggerSkillSlot1() { this.useSkill1Pressed = true; }
+    public void triggerShoot() { this.mousePressed = true; }
+
+    public void setMousePosition(double x, double y) {
+        this.mouseScreenX = x;
+        this.mouseScreenY = y;
+    }
+
+    public boolean consumeSkillSlot0() {
+        if (useSkill0Pressed) {
+            useSkill0Pressed = false;
+            return true;
+        }
+        return false;
+    }
+
+    public boolean consumeSkillSlot1() {
+        if (useSkill1Pressed) {
+            useSkill1Pressed = false;
             return true;
         }
         return false;

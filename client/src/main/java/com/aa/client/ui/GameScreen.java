@@ -1,10 +1,9 @@
 package com.aa.client.ui;
 
-import com.aa.client.asset.AudioManager;
 import com.aa.client.game.GameClient;
 import com.aa.client.input.InputHandler;
+import com.aa.client.mcp.ClientMcpServer;
 import com.aa.client.util.ClientConfig;
-import java.util.function.Consumer;
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -16,11 +15,9 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.Slider;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -33,7 +30,7 @@ public class GameScreen {
     private boolean paused = false;
     private VBox pauseOverlay;
     private VBox helpOverlay;
-    private VBox settingsOverlay;
+    private SettingsOverlay settingsOverlay;
     private Label idleWarningLabel;
     private AnimationTimer gameLoop;
 
@@ -56,7 +53,7 @@ public class GameScreen {
 
         pauseOverlay = buildPauseOverlay(stage);
         helpOverlay = buildHelpOverlay();
-        settingsOverlay = buildSettingsOverlay(stage);
+        settingsOverlay = new SettingsOverlay(gameClient, stage, () -> {}, false);
 
         idleWarningLabel = new Label();
         idleWarningLabel.setStyle("-fx-text-fill: #f85149; -fx-font-size: 16px; -fx-font-weight: bold; -fx-background-color: rgba(13, 17, 23, 0.8); -fx-padding: 8 16; -fx-background-radius: 6; -fx-border-color: #f85149; -fx-border-radius: 6; -fx-border-width: 1;");
@@ -64,7 +61,7 @@ public class GameScreen {
         StackPane.setAlignment(idleWarningLabel, Pos.TOP_CENTER);
         StackPane.setMargin(idleWarningLabel, new Insets(10, 0, 0, 0));
 
-        StackPane centerStack = new StackPane(gameArea, pauseOverlay, helpOverlay, settingsOverlay, idleWarningLabel);
+        StackPane centerStack = new StackPane(gameArea, pauseOverlay, helpOverlay, settingsOverlay.getRoot(), idleWarningLabel);
 
         BorderPane root = new BorderPane();
         root.setTop(TitleBar.create("Partida en curso", stage, true));
@@ -78,7 +75,7 @@ public class GameScreen {
             if (e.getCode() == KeyCode.ESCAPE) {
                 if (helpOverlay.isVisible()) {
                     toggleHelp();
-                } else if (settingsOverlay.isVisible()) {
+                } else if (settingsOverlay.getRoot().isVisible()) {
                     toggleSettings();
                 } else {
                     togglePause();
@@ -115,6 +112,17 @@ public class GameScreen {
         };
         gameLoop.start();
 
+        ClientMcpServer mcpSrv = gameClient.getScreenManager().getMcpServer();
+        if (mcpSrv != null) {
+            mcpSrv.setCanvas(canvas);
+        } else {
+            ClientMcpServer mcpNew = new ClientMcpServer(
+                gameClient, gameClient.getInputHandler(),
+                gameClient.getRenderer(), canvas, stage);
+            gameClient.getScreenManager().setMcpServer(mcpNew);
+            mcpNew.start();
+        }
+
         return scene;
     }
 
@@ -131,7 +139,8 @@ public class GameScreen {
         Runnable resumeFn = () -> {
             paused = false;
             helpOverlay.setVisible(false);
-            settingsOverlay.setVisible(false);
+            settingsOverlay.getRoot().setVisible(false);
+            settingsOverlay.getRoot().setManaged(false);
             pauseOverlay.setVisible(false);
             gameClient.setPaused(false);
         };
@@ -183,77 +192,12 @@ public class GameScreen {
         return overlay;
     }
 
-    private VBox buildSettingsOverlay(Stage stage) {
-        VBox overlay = new VBox(12);
-        overlay.setAlignment(Pos.CENTER);
-        overlay.setStyle(OVERLAY);
-        overlay.setVisible(false);
-        overlay.setMinWidth(380);
-
-        Label title = new Label("AJUSTES");
-        title.setStyle(OVERLAY_TITLE);
-
-        Button fullscreenBtn = new Button();
-        fullscreenBtn.setMaxWidth(280);
-        String fsBase = Styles.button(Styles.BG_INPUT, Styles.BORDER);
-        String fsHover = Styles.button(Styles.BORDER, Styles.BORDER);
-        Runnable updateFsBtn = () -> {
-            boolean fs = stage.isFullScreen();
-            fullscreenBtn.setText(fs ? "🗗  Modo ventana" : "⛶  Pantalla completa");
-        };
-        updateFsBtn.run();
-        fullscreenBtn.setStyle(fsBase);
-        fullscreenBtn.setOnMouseEntered(e -> fullscreenBtn.setStyle(fsHover));
-        fullscreenBtn.setOnMouseExited(e -> fullscreenBtn.setStyle(fsBase));
-        fullscreenBtn.setOnAction(e -> {
-            gameClient.getScreenManager().toggleFullScreen();
-            updateFsBtn.run();
-        });
-        stage.fullScreenProperty().addListener((obs, old, val) -> updateFsBtn.run());
-
-        VBox slidersBox = new VBox(10);
-        slidersBox.setAlignment(Pos.CENTER);
-        slidersBox.setMaxWidth(320);
-
-        slidersBox.getChildren().add(fullscreenBtn);
-        slidersBox.getChildren().add(buildVolumeRow("Volumen General", AudioManager.getMasterVolume(), AudioManager::setMasterVolume));
-        slidersBox.getChildren().add(buildVolumeRow("Volumen Efectos", AudioManager.getSfxVolume(), AudioManager::setSfxVolume));
-        slidersBox.getChildren().add(buildVolumeRow("Volumen Música", AudioManager.getMusicVolume(), AudioManager::setMusicVolume));
-
-        Button closeBtn = btn("Volver", Styles.ACCENT, Styles.ACCENT_HOVER, e -> toggleSettings());
-        overlay.getChildren().addAll(title, slidersBox, closeBtn);
-        return overlay;
-    }
-
-    private HBox buildVolumeRow(String labelText, double initialValue, Consumer<Double> setter) {
-        Label label = new Label(labelText);
-        label.setStyle("-fx-text-fill: #f0f6fc; -fx-font-size: 13px; -fx-min-width: 130px;");
-
-        Slider slider = new Slider(0, 100, initialValue * 100);
-        slider.setStyle("-fx-control-inner-background: #21262d; -fx-accent: #58a6ff;");
-        slider.setMaxWidth(160);
-        slider.setMinWidth(160);
-
-        Label valueLabel = new Label(String.format("%.0f%%", initialValue * 100));
-        valueLabel.setStyle("-fx-text-fill: #58a6ff; -fx-font-size: 12px; -fx-min-width: 36px; -fx-font-weight: bold;");
-
-        slider.valueProperty().addListener((obs, old, val) -> {
-            double v = val.doubleValue() / 100.0;
-            setter.accept(v);
-            valueLabel.setText(String.format("%.0f%%", val.doubleValue()));
-        });
-
-        HBox row = new HBox(8);
-        row.setAlignment(Pos.CENTER_LEFT);
-        row.getChildren().addAll(label, slider, valueLabel);
-        return row;
-    }
-
     private void togglePause() {
         paused = !paused;
         if (paused) {
             helpOverlay.setVisible(false);
-            settingsOverlay.setVisible(false);
+            settingsOverlay.getRoot().setVisible(false);
+            settingsOverlay.getRoot().setManaged(false);
         }
         pauseOverlay.setVisible(paused);
         gameClient.setPaused(paused);
@@ -263,14 +207,19 @@ public class GameScreen {
         boolean showing = !helpOverlay.isVisible();
         helpOverlay.setVisible(showing);
         pauseOverlay.setVisible(!showing);
-        settingsOverlay.setVisible(false);
+        settingsOverlay.getRoot().setVisible(false);
+        settingsOverlay.getRoot().setManaged(false);
     }
 
     private void toggleSettings() {
-        boolean showing = !settingsOverlay.isVisible();
-        settingsOverlay.setVisible(showing);
-        pauseOverlay.setVisible(!showing);
-        helpOverlay.setVisible(false);
+        if (settingsOverlay.getRoot().isVisible()) {
+            settingsOverlay.hide();
+            pauseOverlay.setVisible(true);
+        } else {
+            settingsOverlay.show();
+            pauseOverlay.setVisible(false);
+            helpOverlay.setVisible(false);
+        }
     }
 
     private void updateIdleWarning() {

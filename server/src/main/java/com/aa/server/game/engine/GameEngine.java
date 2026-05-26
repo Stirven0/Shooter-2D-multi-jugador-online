@@ -30,6 +30,7 @@ public class GameEngine {
         systems.add(new CollisionSystem());
         systems.add(damageSystem);
         systems.add(powerUpSystem);
+        systems.add(new SkillSystem());
         systems.add(upgradeSystem);
     }
 

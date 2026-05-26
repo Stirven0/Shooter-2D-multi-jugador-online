@@ -5,6 +5,8 @@ import com.aa.shared.model.Bullet;
 import com.aa.shared.model.Obstacle;
 import com.aa.shared.model.Player;
 import com.aa.shared.model.PowerUpPickup;
+import com.aa.shared.model.PowerUpType;
+import com.aa.shared.model.SkillSlot;
 import com.aa.shared.model.WeaponPickup;
 import com.aa.shared.model.WeaponType;
 import com.aa.shared.state.GameState;
@@ -369,6 +371,35 @@ public class Renderer {
             gc.setFont(Font.font("Monospace", 11));
             gc.setTextAlign(TextAlignment.RIGHT);
             gc.fillText("Mejora x" + local.getUpgradePoints(), cw - 16, ch - 80);
+        }
+
+        // Skills HUD (bottom center)
+        double skillY = ch - 40;
+        for (int i = 0; i < 2; i++) {
+            SkillSlot slot = local.getSkillSlots() != null && i < local.getSkillSlots().length ? local.getSkillSlots()[i] : null;
+            if (slot == null || slot.getSkill() == null) continue;
+            double skX = cw/2 + (i - 1) * 80;
+
+            gc.setFill(Color.rgb(13, 17, 23, 0.8));
+            gc.fillRoundRect(skX - 30, skillY - 12, 60, 24, 4, 4);
+            gc.setStroke(Color.rgb(48, 54, 61));
+            gc.setLineWidth(1);
+            gc.strokeRoundRect(skX - 30, skillY - 12, 60, 24, 4, 4);
+
+            String keyLabel = i == 0 ? "[E]" : "[F]";
+            gc.setFill(Color.rgb(139, 148, 158));
+            gc.setFont(Font.font("Monospace", 9));
+            gc.setTextAlign(TextAlignment.CENTER);
+            gc.fillText(keyLabel, skX, skillY + 4);
+
+            if (slot.getCooldownRemaining() > 0) {
+                gc.setFill(Color.rgb(248, 81, 73, 0.5));
+                gc.fillText(String.format("%.1f", slot.getCooldownRemaining()), skX, skillY + 20);
+            } else {
+                gc.setFill(Color.rgb(88, 166, 255));
+                gc.setFont(Font.font("Monospace", 10));
+                gc.fillText(slot.getSkill().getDisplayName(), skX, skillY + 20);
+            }
         }
 
         // Scoreboard (top-right)
