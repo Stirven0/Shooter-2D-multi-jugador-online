@@ -19,7 +19,8 @@ python tools/load_test.py 5                 # stress test (5 bots)
 ## Test commands
 ```bash
 mvn test -pl server                         # 58 tests server
-mvn test -pl server -Dtest="!*IntegrationTest"  # solo unitarias
+mvn test -pl server -Dtest="!*IntegrationTest"  # solo unitarias (no necesita puerto)
+mvn test -pl server -Dtest="com.aa.server.game.system.*"  # paquete específico
 Xvfb :99 -ac -screen 0 1280x720x24 &       # iniciar display virtual
 DISPLAY=:99 mvn test -pl client             # 20 tests UI (requiere Xvfb)
 mvn test -pl server,client                  # ambos módulos
@@ -89,3 +90,15 @@ tools/      → Python test scripts
 
 ## Credentials (dev only)
 - `player1` / `pass1`, `player2` / `pass2` (creados en AuthService constructor)
+
+## DB & Config (detalle)
+- **DB_URL/DB_USER/DB_PASSWORD** se leen de system properties (no de .env). Default: SQLite `shooter.db`.
+- **ServerConfig hardcodea** TICK_RATE (30), PLAYER_SPEED, etc. Editar el .java; no carga .env. `.env.example` tiene TICK_RATE=20 pero el código usa 30.
+- HikariCP pool. `DatabaseManager.initForTest()` usa SQLite in-memory.
+- Tablas: `users` (auth) y `player_stats` (kills/deaths/wins/games/upgrade_points).
+
+## Notas adicionales
+- **Test de integración** (`GameFlowIntegrationTest`) requiere puerto 8080 libre. Usar `!*IntegrationTest` para unit-only.
+- **Cliente cuelga sin servidor**: `mvn javafx:run -pl client` espera indefinidamente si el server no corre. Arrancar server primero.
+- **Power-ups SLOW/WEAKNESS** son debuffs (isDebuff() = true).
+- **Skills**: E = slot 0, F = slot 1.
