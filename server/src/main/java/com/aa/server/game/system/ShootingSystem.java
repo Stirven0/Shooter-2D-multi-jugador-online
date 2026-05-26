@@ -2,7 +2,6 @@ package com.aa.server.game.system;
 
 import com.aa.server.game.PlayerInput;
 import com.aa.server.game.map.GameMap;
-import com.aa.server.util.ServerConfig;
 import com.aa.shared.message.MessageType;
 import com.aa.shared.message.ShootMessage;
 import com.aa.shared.model.Bullet;

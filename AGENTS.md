@@ -19,8 +19,8 @@ python tools/load_test.py 5                 # stress test (5 bots)
 ```bash
 mvn test -pl server                         # 57 tests server
 mvn test -pl server -Dtest="!*IntegrationTest"  # solo unitarias
-Xvfb :99 -ac -screen 0 1280x720x24 &       # iniciar display virtual
-DISPLAY=:99 mvn test -pl client             # 20 tests UI (requiere Xvfb)
+Xvfb :99 -ac -screen 0 1280x720x24 &       # iniciar display virtual (solo Linux)
+DISPLAY=:99 mvn test -pl client             # 20 tests UI (Linux con Xvfb; en Windows: `mvn test -pl client` directo)
 mvn test -pl server,client                  # ambos módulos
 ```
 

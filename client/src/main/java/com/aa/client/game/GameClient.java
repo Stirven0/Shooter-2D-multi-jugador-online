@@ -10,7 +10,6 @@ import com.aa.client.ui.ScreenManager;
 import com.aa.client.util.ClientConfig;
 import com.aa.shared.message.*;
 import com.aa.shared.model.Player;
-import com.aa.shared.model.WeaponType;
 import com.aa.shared.state.GameState;
 import com.google.gson.JsonObject;
 import java.net.URI;
