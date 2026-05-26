@@ -3,6 +3,8 @@ package com.aa.client.ui;
 import com.aa.client.game.GameClient;
 import com.aa.client.util.ClientConfig;
 import com.aa.shared.message.RoomListResponseMessage;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -11,7 +13,13 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
-import javafx.scene.layout.*;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import javafx.util.Duration;
 import java.util.List;
 import java.util.Map;
 import javafx.stage.Stage;
@@ -30,10 +38,13 @@ public class LobbyScreen {
     private Label roomStatusLabel;
     private ComboBox<String> mapSelector;
     private ListView<String> playerList;
+    private volatile String currentHostId;
     private ListView<String> roomListView;
     private List<RoomListResponseMessage.RoomInfo> cachedRooms;
     private Label errorLabel;
     private VBox myRoomPanel;
+    private SettingsOverlay settingsOverlay;
+    private Timeline refreshTimer;
 
     private static final String LIST_STYLE = "-fx-control-inner-background: #161b22; -fx-control-inner-background-alt: #1c2128; -fx-text-fill: #f0f6fc; -fx-background-radius: 6; -fx-border-color: #30363d; -fx-border-radius: 6; -fx-border-width: 1; -fx-selection-bar: #1f6feb; -fx-selection-bar-non-focused: #21262d;";
     private static final String LABEL_ACCENT = "-fx-text-fill: #58a6ff; -fx-font-size: 14px; -fx-font-weight: bold;";
@@ -62,12 +73,16 @@ public class LobbyScreen {
         Label versionLabel = new Label("v1.0");
         versionLabel.setStyle("-fx-text-fill: #484f58; -fx-font-size: 11px; -fx-padding: 0 10;");
 
+        Button settingsBtn = new Button("Ajustes");
+        Styles.setBtnStyle(settingsBtn, Styles.BG_INPUT, Styles.BORDER);
+        settingsBtn.setOnAction(e -> settingsOverlay.show());
+
         Button logoutBtn = new Button("Cerrar sesión");
         Styles.setBtnStyle(logoutBtn, Styles.DANGER, Styles.DANGER_HOVER);
 
         logoutBtn.setOnAction(e -> gameClient.logout());
 
-        topBar.getChildren().addAll(userLabel, spacer, versionLabel, logoutBtn);
+        topBar.getChildren().addAll(userLabel, spacer, versionLabel, settingsBtn, logoutBtn);
 
         errorLabel = new Label();
         errorLabel.setStyle("-fx-text-fill: #f85149; -fx-font-size: 12px;");
@@ -197,13 +212,23 @@ public class LobbyScreen {
         content.setTop(topSection);
         content.setCenter(center);
 
+        settingsOverlay = new SettingsOverlay(gameClient, stage, () -> {});
+        settingsOverlay.getRoot().setVisible(false);
+        settingsOverlay.getRoot().setManaged(false);
+
+        StackPane stack = new StackPane(content, settingsOverlay.getRoot());
+
         BorderPane root = new BorderPane();
         root.setTop(TitleBar.create("Lobby", stage, true));
-        root.setCenter(content);
+        root.setCenter(stack);
 
         Scene scene = new Scene(root, ClientConfig.WIDTH, ClientConfig.HEIGHT + TitleBar.HEIGHT);
 
         gameClient.requestRoomList();
+
+        refreshTimer = new Timeline(new KeyFrame(Duration.seconds(3), e -> gameClient.requestRoomList()));
+        refreshTimer.setCycleCount(Timeline.INDEFINITE);
+        refreshTimer.play();
 
         return scene;
     }
@@ -246,9 +271,18 @@ public class LobbyScreen {
         });
     }
 
-    public void updatePlayerList(List<String> playerIds) {
+    public void updatePlayerList(List<String> playerIds, String hostId) {
+        this.currentHostId = hostId;
         Platform.runLater(() -> {
-            playerList.getItems().setAll(playerIds);
+            playerList.getItems().clear();
+            String localId = gameClient.getClientState().getLocalPlayerId();
+            for (String pid : playerIds) {
+                boolean isHost = pid.equals(hostId);
+                boolean isMe = pid.equals(localId);
+                String display = (isHost ? "👑 " : "   ") + pid;
+                if (isMe) display += " (tú)";
+                playerList.getItems().add(display);
+            }
             roomStatusLabel.setText("👥 " + playerIds.size() + " jugador(es) en sala");
             roomStatusLabel.setStyle("-fx-text-fill: #8b949e; -fx-font-size: 12px;");
         });

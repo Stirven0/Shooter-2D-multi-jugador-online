@@ -88,6 +88,11 @@ public class InputHandler {
     public void triggerSkillSlot1() { this.useSkill1Pressed = true; }
     public void triggerShoot() { this.mousePressed = true; }
 
+    public void setMousePosition(double x, double y) {
+        this.mouseScreenX = x;
+        this.mouseScreenY = y;
+    }
+
     public boolean consumeSkillSlot0() {
         if (useSkill0Pressed) {
             useSkill0Pressed = false;

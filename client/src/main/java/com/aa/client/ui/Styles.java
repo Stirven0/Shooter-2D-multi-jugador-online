@@ -35,6 +35,10 @@ public final class Styles {
     public static String btnSuccess() { return button(SUCCESS, SUCCESS_HOVER); }
     public static String btnDefault() { return button(BG_INPUT, BORDER); }
 
+    public static String input() {
+        return "-fx-background-color: " + BG_INPUT + "; -fx-text-fill: " + TEXT_PRIMARY + "; -fx-font-size: 13px; -fx-padding: 6 10; -fx-background-radius: 4; -fx-border-color: " + BORDER + "; -fx-border-radius: 4; -fx-border-width: 1;";
+    }
+
     public static void setBtnStyle(Button btn, String bg, String hoverBg) {
         String normal = button(bg, hoverBg);
         String hover = button(hoverBg, hoverBg);

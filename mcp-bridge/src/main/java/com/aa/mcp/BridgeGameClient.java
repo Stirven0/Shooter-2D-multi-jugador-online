@@ -104,7 +104,7 @@ public class BridgeGameClient extends WebSocketClient {
         send(JsonUtil.toJson(new LoginMessage(username, password, true)));
     }
 
-    public void createAndJoinGame() {
+    public void createAndJoinRoom() {
         JsonObject createRoom = new JsonObject();
         createRoom.addProperty("type", "CREATE_ROOM");
         createRoom.addProperty("mapId", "map_01");

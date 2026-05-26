@@ -22,8 +22,10 @@ mvn clean install -DskipTests -pl mcp-bridge -am
 java -jar server/target/server-1.0-SNAPSHOT.jar
 
 # Terminal 2: MCP bridge (stdio mode)
-java -jar mcp-bridge/target/mcp-bridge-1.0-SNAPSHOT.jar --host localhost --port 8080 --username ai_player
+java -jar mcp-bridge/target/mcp-bridge-1.0-SNAPSHOT.jar --host localhost --port 8080 --username ai_player --password ai_pass
 ```
+
+The bridge includes an autonomous AI loop that moves toward the nearest enemy and shoots when in range.
 
 ### 3. Test with Claude Desktop
 Add to `claude_desktop_config.json`:
@@ -36,7 +38,8 @@ Add to `claude_desktop_config.json`:
         "-jar", "/path/to/mcp-bridge/target/mcp-bridge-1.0-SNAPSHOT.jar",
         "--host", "localhost",
         "--port", "8080",
-        "--username", "ai_player"
+        "--username", "ai_player",
+        "--password", "ai_pass"
       ]
     }
   }

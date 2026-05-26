@@ -6,7 +6,6 @@ import com.aa.client.network.ClientMessageListener;
 import com.aa.client.network.NetworkClient;
 import com.aa.client.render.Camera;
 import com.aa.client.render.Renderer;
-import com.aa.client.ui.AutoLoginConfig;
 import com.aa.client.ui.ScreenManager;
 import com.aa.client.util.ClientConfig;
 import com.aa.shared.message.*;
@@ -26,7 +25,6 @@ public class GameClient implements ClientMessageListener {
     private final Renderer renderer;
     private final Camera camera;
     private final ScreenManager screenManager;
-    private final AutoLoginConfig autoLogin;
     private volatile String currentRoomId;
     private volatile String currentUsername;
     private volatile boolean connected = false;
@@ -35,17 +33,11 @@ public class GameClient implements ClientMessageListener {
     private volatile double fps = 0;
     private volatile int idleWarningSeconds = 0;
     private volatile java.util.List<BuffUpdateMessage.ActiveBuff> activeBuffs = java.util.Collections.emptyList();
-    private volatile boolean autoGameStarted = false;
     private volatile String lastError = null;
     private volatile String currentScreen = "login";
 
     public GameClient(ScreenManager screenManager) {
-        this(screenManager, null);
-    }
-
-    public GameClient(ScreenManager screenManager, AutoLoginConfig autoLogin) {
         this.screenManager = screenManager;
-        this.autoLogin = autoLogin;
         this.state = new GameClientState();
         this.network = createNetworkClient();
         this.inputHandler = new InputHandler();
@@ -67,10 +59,7 @@ public class GameClient implements ClientMessageListener {
     public boolean connect() {
         try {
             System.out.println("[CLIENT] Conectando a " + ClientConfig.getServerUrl());
-            if (network.isClosed()) {
-                System.out.println("[CLIENT] Recreando NetworkClient (estaba cerrado)");
-                network = createNetworkClient();
-            }
+            network = createNetworkClient();
             boolean ok = network.connectBlocking(5000);
             if (ok) {
                 System.out.println("[CLIENT] Conectado exitosamente");
@@ -220,6 +209,7 @@ public class GameClient implements ClientMessageListener {
     public void onConnected() {
         connected = true;
         System.out.println("[CLIENT] Callback onConnected");
+        Platform.runLater(() -> screenManager.showNotification("Conectado al servidor", false));
     }
 
     @Override
@@ -229,7 +219,12 @@ public class GameClient implements ClientMessageListener {
         state.setInGame(false);
         currentScreen = "login";
         if (wasInGame) {
-            Platform.runLater(() -> screenManager.showLobby());
+            Platform.runLater(() -> {
+                screenManager.showLobby();
+                screenManager.showNotification("Desconectado del servidor", true);
+            });
+        } else {
+            Platform.runLater(() -> screenManager.showNotification("Desconectado: " + reason, true));
         }
         System.out.println("[CLIENT] Desconectado: " + reason + " wasInGame=" + wasInGame);
     }
@@ -242,6 +237,7 @@ public class GameClient implements ClientMessageListener {
     @Override
     public void onError(String code, String description) {
         System.err.println("[CLIENT] Error " + code + ": " + description);
+        Platform.runLater(() -> screenManager.showNotification(code + ": " + description, true));
     }
 
     private void handleMessage(Message msg) {
@@ -277,13 +273,9 @@ public class GameClient implements ClientMessageListener {
                 case ROOM_UPDATED -> {
                     RoomUpdatedMessage rum = (RoomUpdatedMessage) msg;
                     if (screenManager.getLobbyScreen() != null) {
-                        screenManager.getLobbyScreen().updatePlayerList(rum.getPlayerIds());
+                        screenManager.getLobbyScreen().updatePlayerList(rum.getPlayerIds(), rum.getHostId());
                     }
-                    if (autoLogin != null && autoLogin.isAutoCreate() && !autoGameStarted && rum.getPlayerIds() != null && rum.getPlayerIds().size() >= 2) {
-                        System.out.println("[AUTO] " + rum.getPlayerIds().size() + " players in room, starting game...");
-                        autoGameStarted = true;
-                        startGame();
-                    }
+
                 }
                 case JOIN_ROOM_RESPONSE -> {
                     JoinRoomResponseMessage jrm = (JoinRoomResponseMessage) msg;
@@ -305,21 +297,17 @@ public class GameClient implements ClientMessageListener {
                     if (screenManager.getLobbyScreen() != null) {
                         screenManager.getLobbyScreen().updateRoomList(rlm.getRooms());
                     }
-                    if (autoLogin != null && autoLogin.isAutoJoin() && rlm.getRooms() != null) {
-                        for (RoomListResponseMessage.RoomInfo room : rlm.getRooms()) {
-                            if ("WAITING".equals(room.getStatus())) {
-                                System.out.println("[AUTO] Joining room: " + room.getRoomId());
-                                joinRoom(room.getRoomId());
-                                break;
-                            }
-                        }
-                    }
+
                 }
                 case GAME_STATE -> {
                     GameStateMessage gsm = (GameStateMessage) msg;
                     state.updateState(gsm.getGameState());
                     if (!state.isInGame()) {
-                        lastError = null;
+                        var gs = gsm.getGameState();
+                        if (gs != null && currentRoomId != null && !currentRoomId.equals(gs.getGameId())) {
+                            System.out.println("[CLIENT] Ignorando GAME_STATE de otra sala: " + gs.getGameId());
+                            break;
+                        }
                         state.setInGame(true);
                         idleWarningSeconds = 0;
                         currentScreen = "game";
@@ -362,7 +350,6 @@ public class GameClient implements ClientMessageListener {
                     GameEndMessage gem = (GameEndMessage) msg;
                     state.setInGame(false);
                     state.setCurrentState(null);
-                    autoGameStarted = false;
                     currentScreen = "gameover";
                     System.out.println("[CLIENT] Partida terminada, ganador: " + gem.getWinnerUsername());
                     screenManager.showGameOver(gem);

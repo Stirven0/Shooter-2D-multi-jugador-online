@@ -24,25 +24,10 @@
     }
   },
   "mcp": {
-    "client-alpha": {
+    "game-client": {
       "type": "local",
-      "command": ["cmd", "/c", "tools\\launch_mcp_client.cmd", "--mcp", "--username", "alpha", "--password", "pass", "--auto-register", "--auto-create", "--x", "0", "--y", "0"],
-      "enabled": false
-    },
-    "client-bravo": {
-      "type": "local",
-      "command": ["cmd", "/c", "tools\\launch_mcp_client.cmd", "--mcp", "--username", "bravo", "--password", "pass", "--auto-register", "--auto-join", "--x", "820", "--y", "0"],
-      "enabled": false
-    },
-    "client-charlie": {
-      "type": "local",
-      "command": ["cmd", "/c", "tools\\launch_mcp_client.cmd", "--mcp", "--username", "charlie", "--password", "pass", "--auto-register", "--auto-join", "--x", "0", "--y", "500"],
-      "enabled": false
-    },
-    "client-delta": {
-      "type": "local",
-      "command": ["cmd", "/c", "tools\\launch_mcp_client.cmd", "--mcp", "--username", "delta", "--password", "pass", "--auto-register", "--auto-join", "--x", "820", "--y", "500"],
-      "enabled": false
+      "command": ["nc", "localhost", "4567"],
+      "enabled": true
     }
   }
 }

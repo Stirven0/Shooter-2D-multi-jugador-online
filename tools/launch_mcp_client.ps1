@@ -1,12 +1,4 @@
-param(
-    [string]$username = "player",
-    [string]$password = "pass",
-    [switch]$autoRegister,
-    [switch]$autoCreate,
-    [switch]$autoJoin,
-    [int]$x = 0,
-    [int]$y = 0
-)
+param()
 
 $projectDir = Split-Path -Parent $PSScriptRoot
 $m2 = "$env:USERPROFILE\.m2\repository"
@@ -57,15 +49,8 @@ $modulePath = @(
 # Build program arguments
 $args = @()
 $args += "--mcp"
-$args += "--username", $username
-$args += "--password", $password
-$args += "--x", [string]$x
-$args += "--y", [string]$y
-if ($autoRegister) { $args += "--auto-register" }
-if ($autoCreate)   { $args += "--auto-create" }
-if ($autoJoin)     { $args += "--auto-join" }
 
-Write-Host "[launch] Starting MCP client: $username @ ($x,$y)" | Out-Host
+Write-Host "[launch] Starting MCP client" | Out-Host
 
 # Launch Java directly - stdin/stdout from this process are inherited by java
 & "java" `

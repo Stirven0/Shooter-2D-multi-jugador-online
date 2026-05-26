@@ -3,6 +3,12 @@ package com.aa.client.ui;
 import com.aa.client.game.GameClient;
 import com.aa.client.mcp.ClientMcpServer;
 import com.aa.shared.message.GameEndMessage;
+import javafx.application.Platform;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.Label;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.StackPane;
 import javafx.stage.StageStyle;
 import javafx.stage.Stage;
 
@@ -13,11 +19,9 @@ public class ScreenManager {
     private LobbyScreen lobbyScreen;
     private LoginScreen loginScreen;
     private volatile ClientMcpServer mcpServer;
-    private final AutoLoginConfig autoLogin;
 
-    public ScreenManager(AutoLoginConfig autoLogin) {
-        this.autoLogin = autoLogin;
-        this.gameClient = new GameClient(this, autoLogin);
+    public ScreenManager() {
+        this.gameClient = new GameClient(this);
     }
 
     public void init(Stage stage) {
@@ -25,33 +29,8 @@ public class ScreenManager {
         stage.initStyle(StageStyle.UNDECORATED);
         stage.setTitle(com.aa.client.util.ClientConfig.TITLE);
 
-        if (autoLogin != null && autoLogin.hasPosition()) {
-            stage.setX(autoLogin.getX());
-            stage.setY(autoLogin.getY());
-        }
-
-        if (autoLogin != null) {
-            startAutoLogin();
-        } else {
-            showLogin();
-        }
+        showLogin();
         stage.show();
-    }
-
-    private void startAutoLogin() {
-        System.out.println("[AUTO] Auto-login as " + autoLogin.getUsername() + " register=" + autoLogin.isAutoRegister());
-        Thread t = new Thread(() -> {
-            boolean ok = gameClient.connect();
-            if (ok) {
-                javafx.application.Platform.runLater(() -> {
-                    gameClient.sendLogin(autoLogin.getUsername(), autoLogin.getPassword(), autoLogin.isAutoRegister());
-                });
-            } else {
-                System.err.println("[AUTO] Failed to connect to server");
-            }
-        }, "auto-login-thread");
-        t.setDaemon(true);
-        t.start();
     }
 
     public void showLobby() {
@@ -59,20 +38,6 @@ public class ScreenManager {
         gameClient.setCurrentScreen("lobby");
         this.lobbyScreen = new LobbyScreen(gameClient);
         stage.setScene(lobbyScreen.createScene(stage));
-
-        if (autoLogin != null) {
-            handleAutoLobbyAction();
-        }
-    }
-
-    private void handleAutoLobbyAction() {
-        if (autoLogin.isAutoCreate()) {
-            System.out.println("[AUTO] Creating room...");
-            gameClient.createRoom("map_01");
-        } else if (autoLogin.isAutoJoin()) {
-            System.out.println("[AUTO] Requesting room list...");
-            gameClient.requestRoomList();
-        }
     }
 
     public LobbyScreen getLobbyScreen() {
@@ -117,6 +82,32 @@ public class ScreenManager {
         return null;
     }
 
+    public void showNotification(String msg, boolean isError) {
+        Platform.runLater(() -> {
+            var scene = stage.getScene();
+            if (scene == null || !(scene.getRoot() instanceof BorderPane bp)) return;
+            if (!(bp.getCenter() instanceof StackPane sp)) return;
+
+            var label = new Label(msg);
+            label.setStyle((isError
+                ? "-fx-background-color: #f85149;"
+                : "-fx-background-color: #3fb950;")
+                + "-fx-text-fill: #ffffff; -fx-font-size: 13px; -fx-padding: 8 16;"
+                + "-fx-background-radius: 6; -fx-font-weight: bold; -fx-opacity: 0.95;"
+                + "-fx-border-color: rgba(255,255,255,0.15); -fx-border-radius: 6;");
+            label.setMaxWidth(Double.MAX_VALUE);
+            label.setAlignment(Pos.CENTER);
+            StackPane.setAlignment(label, Pos.TOP_CENTER);
+            StackPane.setMargin(label, new Insets(10, 40, 0, 40));
+            sp.getChildren().add(label);
+
+            new Thread(() -> {
+                try { Thread.sleep(3000); } catch (InterruptedException ignored) {}
+                Platform.runLater(() -> sp.getChildren().remove(label));
+            }, "notif-clear").start();
+        });
+    }
+
     public void cleanup() {
         if (mcpServer != null) {
             mcpServer.stop();
@@ -157,6 +148,19 @@ public class ScreenManager {
 
     public ClientMcpServer getMcpServer() { return mcpServer; }
     public void setMcpServer(ClientMcpServer mcpServer) { this.mcpServer = mcpServer; }
+
+    public void restartMcpServer(String host, int port) {
+        if (mcpServer != null) {
+            mcpServer.stop();
+            mcpServer = null;
+        }
+        com.aa.client.util.ClientConfig.setMcpHost(host);
+        com.aa.client.util.ClientConfig.setMcpPort(port);
+        com.aa.client.util.ClientConfig.setMcpTcpEnabled(true);
+        mcpServer = new ClientMcpServer(gameClient, gameClient.getInputHandler(),
+            gameClient.getRenderer(), null, stage);
+        mcpServer.start();
+    }
 
     public Stage getStage() { return stage; }
 

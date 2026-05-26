@@ -1,7 +1,11 @@
 package com.aa.mcp;
 
 import com.aa.shared.message.*;
-import com.aa.shared.model.*;
+import com.aa.shared.model.Player;
+import com.aa.shared.model.PowerUpPickup;
+import com.aa.shared.model.SkillSlot;
+import com.aa.shared.model.Vector2;
+import com.aa.shared.model.WeaponPickup;
 import com.aa.shared.state.GameState;
 import com.aa.shared.util.JsonUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -64,7 +68,8 @@ public class McpBridge {
         }
 
         System.out.println("[MCP] Connected and logged in as: " + username);
-        gameClient.createAndJoinGame();
+        gameClient.createAndJoinRoom();
+        startAiLoop();
 
         var jsonMapper = new JacksonMcpJsonMapper(new ObjectMapper());
         var transport = new StdioServerTransportProvider(jsonMapper);
@@ -78,6 +83,40 @@ public class McpBridge {
 
         System.out.println("[MCP] MCP Server ready on stdio");
         Thread.currentThread().join();
+    }
+
+    private void startAiLoop() {
+        Thread ai = new Thread(() -> {
+            while (true) {
+                try { Thread.sleep(50); } catch (InterruptedException e) { break; }
+                if (!gameClient.isInGame()) continue;
+                GameState state = gameClient.getGameState();
+                if (state == null) continue;
+                Player me = state.getPlayer(gameClient.getPlayerId());
+                if (me == null || !me.isAlive()) continue;
+
+                Player target = null;
+                double minDist = Double.MAX_VALUE;
+                for (Player p : state.getAllPlayers()) {
+                    if (p.getId().equals(gameClient.getPlayerId()) || !p.isAlive()) continue;
+                    double d = me.getPosition().distanceTo(p.getPosition());
+                    if (d < minDist) { minDist = d; target = p; }
+                }
+                if (target == null) continue;
+
+                double dx = target.getPosition().x() - me.getPosition().x();
+                double dy = target.getPosition().y() - me.getPosition().y();
+                double len = Math.sqrt(dx * dx + dy * dy);
+                if (len > 0) {
+                    gameClient.sendMove(dx / len, dy / len);
+                    if (len < 350) {
+                        gameClient.sendShoot(Math.atan2(dy, dx));
+                    }
+                }
+            }
+        }, "ai-loop");
+        ai.setDaemon(true);
+        ai.start();
     }
 
     @SuppressWarnings("unchecked")

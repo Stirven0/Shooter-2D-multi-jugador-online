@@ -3,18 +3,26 @@ package com.aa.client.mcp;
 import com.aa.client.game.GameClient;
 import com.aa.client.game.GameClientState;
 import com.aa.client.input.InputHandler;
+import com.aa.client.render.Camera;
 import com.aa.client.render.Renderer;
 import com.aa.client.ui.LobbyScreen;
 import com.aa.client.ui.ScreenManager;
+import com.aa.client.util.ClientConfig;
 import com.aa.shared.message.BuffUpdateMessage;
 import com.aa.shared.message.RoomListResponseMessage;
+import com.aa.shared.model.Bullet;
 import com.aa.shared.model.Player;
+import com.aa.shared.model.PowerUpPickup;
+import com.aa.shared.model.WeaponPickup;
 import com.aa.shared.state.GameState;
 import com.aa.shared.util.JsonUtil;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 
 import io.modelcontextprotocol.json.McpJsonMapper;
 import io.modelcontextprotocol.server.McpAsyncServer;
@@ -27,22 +35,28 @@ import io.modelcontextprotocol.spec.McpSchema;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.Scene;
-import javafx.scene.SnapshotParameters;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyCode;
-import javafx.scene.input.MouseButton;
 import javafx.scene.robot.Robot;
 import javafx.stage.Stage;
 
 import reactor.core.publisher.Mono;
 
 import javax.imageio.ImageIO;
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ClientMcpServer {
 
@@ -56,6 +70,9 @@ public class ClientMcpServer {
     private volatile boolean running = false;
     private McpAsyncServer server;
     private Robot robot;
+    private ServerSocket tcpServerSocket;
+    private final Map<String, McpSchema.Tool> toolDefs = new ConcurrentHashMap<>();
+    private final Map<String, java.util.function.BiFunction<McpAsyncServerExchange, Map<String, Object>, Mono<McpSchema.CallToolResult>>> toolHandlers = new ConcurrentHashMap<>();
 
     public ClientMcpServer(GameClient gameClient, InputHandler inputHandler, Renderer renderer, Canvas canvas, Stage stage) {
         this.gameClient = gameClient;
@@ -74,6 +91,16 @@ public class ClientMcpServer {
         if (running) return;
         running = true;
 
+        registerTools();
+
+        if (ClientConfig.isMcpTcpEnabled()) {
+            startTcp(ClientConfig.getMcpHost(), ClientConfig.getMcpPort());
+        } else {
+            startStdio();
+        }
+    }
+
+    private void startStdio() {
         Thread thread = new Thread(() -> {
             try {
                 McpJsonMapper jsonMapper = McpJsonMapper.getDefault();
@@ -85,7 +112,10 @@ public class ClientMcpServer {
                         .build())
                     .build();
 
-                registerTools();
+                for (var spec : buildToolSpecs()) {
+                    server.addTool(spec).subscribe();
+                }
+
                 System.err.println("[CLIENT-MCP] MCP Server ready on stdio");
                 while (running) {
                     try { Thread.sleep(1000); } catch (InterruptedException ignored) {}
@@ -99,10 +129,182 @@ public class ClientMcpServer {
         thread.start();
     }
 
+    public void startTcp(String host, int port) {
+        Thread thread = new Thread(() -> {
+            try (ServerSocket srv = new ServerSocket(port, 50, InetAddress.getByName(host))) {
+                tcpServerSocket = srv;
+                System.err.println("[CLIENT-MCP] MCP Server ready on TCP " + host + ":" + port);
+                while (running) {
+                    Socket client = srv.accept();
+                    new Thread(() -> handleTcpClient(client), "mcp-tcp-handler").start();
+                }
+            } catch (Exception e) {
+                if (running) {
+                    System.err.println("[CLIENT-MCP] TCP error: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+        }, "mcp-tcp-thread");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private void handleTcpClient(Socket socket) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+             PrintWriter writer = new PrintWriter(socket.getOutputStream(), true)) {
+            String line;
+            while (running && (line = reader.readLine()) != null) {
+                String response = handleJsonRpc(line);
+                if (!response.isEmpty()) {
+                    writer.println(response);
+                }
+            }
+        } catch (Exception e) {
+            if (running) System.err.println("[CLIENT-MCP] TCP client error: " + e.getMessage());
+        }
+    }
+
+    private String handleJsonRpc(String message) {
+        try {
+            JsonObject req = gson.fromJson(message, JsonObject.class);
+            if (req == null || !req.has("method")) {
+                return jsonRpcError(null, -32600, "Invalid Request");
+            }
+
+            String method = req.get("method").getAsString();
+            JsonElement id = req.has("id") ? req.get("id") : null;
+
+            switch (method) {
+                case "initialize" -> {
+                    JsonObject caps = new JsonObject();
+                    caps.addProperty("protocolVersion", "2024-11-05");
+                    JsonObject capsInner = new JsonObject();
+                    JsonObject toolsCaps = new JsonObject();
+                    toolsCaps.addProperty("listChanged", false);
+                    capsInner.add("tools", toolsCaps);
+                    caps.add("capabilities", capsInner);
+                    JsonObject serverInfo = new JsonObject();
+                    serverInfo.addProperty("name", "multiplayer-client");
+                    serverInfo.addProperty("version", "2.0.0");
+                    caps.add("serverInfo", serverInfo);
+                    return jsonRpcResult(id, caps);
+                }
+                case "notifications/initialized" -> { return ""; }
+                case "ping" -> { return jsonRpcResult(id, new JsonObject()); }
+                case "tools/list" -> {
+                    JsonObject result = new JsonObject();
+                    JsonArray toolsArr = new JsonArray();
+                    for (McpSchema.Tool tool : toolDefs.values()) {
+                        JsonObject t = new JsonObject();
+                        t.addProperty("name", tool.name());
+                        t.addProperty("description", tool.description() != null ? tool.description() : "");
+                        if (tool.inputSchema() != null) {
+                            JsonObject schema = new JsonObject();
+                            schema.addProperty("type", "object");
+                            if (tool.inputSchema().properties() != null) {
+                                JsonObject props = new JsonObject();
+                                for (var entry : tool.inputSchema().properties().entrySet()) {
+                                    @SuppressWarnings("unchecked")
+                                    Map<String, Object> propDef = (Map<String, Object>) entry.getValue();
+                                    JsonObject pd = new JsonObject();
+                                    pd.addProperty("type", (String) propDef.get("type"));
+                                    if (propDef.containsKey("description"))
+                                        pd.addProperty("description", (String) propDef.get("description"));
+                                    if (propDef.containsKey("default"))
+                                        pd.add("default", gson.toJsonTree(propDef.get("default")));
+                                    props.add(entry.getKey(), pd);
+                                }
+                                schema.add("properties", props);
+                            }
+                            if (tool.inputSchema().required() != null) {
+                                JsonArray reqArr = new JsonArray();
+                                for (String r : tool.inputSchema().required()) reqArr.add(r);
+                                schema.add("required", reqArr);
+                            }
+                            t.add("inputSchema", schema);
+                        }
+                        toolsArr.add(t);
+                    }
+                    result.add("tools", toolsArr);
+                    return jsonRpcResult(id, result);
+                }
+                case "tools/call" -> {
+                    JsonObject p = req.getAsJsonObject("params");
+                    String toolName = p.get("name").getAsString();
+                    JsonObject arguments = p.has("arguments") ? p.getAsJsonObject("arguments") : new JsonObject();
+                    Map<String, Object> argsMap = new HashMap<>();
+                    for (var entry : arguments.entrySet()) {
+                        JsonElement val = entry.getValue();
+                        if (val.isJsonPrimitive()) {
+                            JsonPrimitive prim = val.getAsJsonPrimitive();
+                            if (prim.isString()) argsMap.put(entry.getKey(), prim.getAsString());
+                            else if (prim.isNumber()) argsMap.put(entry.getKey(), prim.getAsDouble());
+                            else if (prim.isBoolean()) argsMap.put(entry.getKey(), prim.getAsBoolean());
+                        } else {
+                            argsMap.put(entry.getKey(), val.toString());
+                        }
+                    }
+                    var handler = toolHandlers.get(toolName);
+                    if (handler == null) {
+                        return jsonRpcError(id, -32601, "Tool not found: " + toolName);
+                    }
+                    McpSchema.CallToolResult result = handler.apply(null, argsMap).block(Duration.ofSeconds(30));
+                    return jsonRpcResult(id, callToolResultToJson(result));
+                }
+                default -> {
+                    return jsonRpcError(id, -32601, "Method not found: " + method);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return jsonRpcError(null, -32700, "Parse error: " + e.getMessage());
+        }
+    }
+
+    private static JsonObject callToolResultToJson(McpSchema.CallToolResult result) {
+        JsonObject json = new JsonObject();
+        JsonArray content = new JsonArray();
+        if (result.content() != null) {
+            for (McpSchema.Content c : result.content()) {
+                if (c instanceof McpSchema.TextContent tc) {
+                    JsonObject item = new JsonObject();
+                    item.addProperty("type", "text");
+                    item.addProperty("text", tc.text());
+                    content.add(item);
+                }
+            }
+        }
+        json.add("content", content);
+        if (result.isError()) json.addProperty("isError", true);
+        return json;
+    }
+
+    private static String jsonRpcResult(JsonElement id, JsonObject result) {
+        JsonObject resp = new JsonObject();
+        resp.addProperty("jsonrpc", "2.0");
+        resp.add("id", id != null ? id : JsonNull.INSTANCE);
+        resp.add("result", result);
+        return resp.toString();
+    }
+
+    private static String jsonRpcError(JsonElement id, int code, String msg) {
+        JsonObject resp = new JsonObject();
+        resp.addProperty("jsonrpc", "2.0");
+        resp.add("id", id != null ? id : JsonNull.INSTANCE);
+        JsonObject error = new JsonObject();
+        error.addProperty("code", code);
+        error.addProperty("message", msg);
+        resp.add("error", error);
+        return resp.toString();
+    }
+
     public void stop() {
         running = false;
         if (server != null) {
             try { server.close(); } catch (Exception ignored) {}
+        }
+        if (tcpServerSocket != null) {
+            try { tcpServerSocket.close(); } catch (Exception ignored) {}
         }
     }
 
@@ -141,13 +343,26 @@ public class ClientMcpServer {
                          Map<String, Object> properties,
                          java.util.function.BiFunction<McpAsyncServerExchange, Map<String, Object>, Mono<McpSchema.CallToolResult>> handler) {
         McpSchema.Tool tool = toolDef(name, description, properties);
-        server.addTool(new McpServerFeatures.AsyncToolSpecification(tool, handler)).subscribe();
+        toolDefs.put(name, tool);
+        toolHandlers.put(name, handler);
+    }
+
+    private List<McpServerFeatures.AsyncToolSpecification> buildToolSpecs() {
+        List<McpServerFeatures.AsyncToolSpecification> specs = new java.util.ArrayList<>();
+        for (var entry : toolDefs.entrySet()) {
+            specs.add(new McpServerFeatures.AsyncToolSpecification(
+                entry.getValue(), toolHandlers.get(entry.getKey())));
+        }
+        return specs;
     }
 
     private void registerTools() {
         registerStatusTools();
         registerUiTools();
         registerGameTools();
+        registerGameControlTools();
+        registerGameObservabilityTools();
+        registerUiSyncTools();
     }
 
     private void registerStatusTools() {
@@ -195,6 +410,9 @@ public class ClientMcpServer {
                 String password = (String) args.get("password");
                 boolean register = Boolean.TRUE.equals(args.get("register"));
 
+                if (!"login".equals(gameClient.getCurrentScreen())) {
+                    return Mono.just(errorResult("Must be on login screen. Current screen: " + gameClient.getCurrentScreen() + ". Use ui_logout first."));
+                }
                 if (gameClient.isConnected()) {
                     return Mono.just(errorResult("Already connected. Use ui_logout first."));
                 }
@@ -215,50 +433,53 @@ public class ClientMcpServer {
             });
 
         addTool("ui_create_room",
-            "Create a new game room. Must be in the lobby screen. Returns room ID once created.",
+            "Create a new game room. Must be in the lobby screen.",
             Map.of("map_id", Map.of("type", "string", "description", "Map ID (default: map_01)")),
             (exchange, args) -> {
-                if (!gameClient.isConnected()) {
-                    return Mono.just(errorResult("Not connected. Login first."));
+                if (!"lobby".equals(gameClient.getCurrentScreen())) {
+                    return Mono.just(errorResult("Must be in lobby. Current screen: " + gameClient.getCurrentScreen()));
                 }
                 String mapId = args.containsKey("map_id") ? (String) args.get("map_id") : "map_01";
                 gameClient.setLastError(null);
                 gameClient.createRoom(mapId);
-                return Mono.just(successResult("Room creation requested for map: " + mapId + ". Use get_screen_info to check result."));
+                return Mono.just(successResult("Room creation requested for map: " + mapId));
             });
 
         addTool("ui_join_room",
             "Join an existing room by ID. Must be in the lobby screen.",
             Map.of("room_id", Map.of("type", "string", "description", "Room ID to join", "required", true)),
             (exchange, args) -> {
-                if (!gameClient.isConnected()) {
-                    return Mono.just(errorResult("Not connected. Login first."));
+                if (!"lobby".equals(gameClient.getCurrentScreen())) {
+                    return Mono.just(errorResult("Must be in lobby. Current screen: " + gameClient.getCurrentScreen()));
                 }
                 String roomId = (String) args.get("room_id");
                 gameClient.setLastError(null);
                 gameClient.joinRoom(roomId);
-                return Mono.just(successResult("Join room request sent: " + roomId + ". Use get_screen_info to check result."));
+                return Mono.just(successResult("Join room request sent: " + roomId));
             });
 
         addTool("ui_start_game",
             "Start the game. Only the room host can do this. Must have at least 2 players in the room.",
             Map.of(),
             (exchange, args) -> {
-                if (!gameClient.isConnected()) {
-                    return Mono.just(errorResult("Not connected."));
+                if (!"lobby".equals(gameClient.getCurrentScreen())) {
+                    return Mono.just(errorResult("Must be in lobby. Current screen: " + gameClient.getCurrentScreen()));
                 }
                 if (gameClient.getCurrentRoomId() == null) {
                     return Mono.just(errorResult("Not in a room. Create or join a room first."));
                 }
                 gameClient.setLastError(null);
                 gameClient.startGame();
-                return Mono.just(successResult("Game start requested. Use get_screen_info to check if game began."));
+                return Mono.just(successResult("Game start requested."));
             });
 
         addTool("ui_leave_room",
             "Leave the current room and return to the lobby.",
             Map.of(),
             (exchange, args) -> {
+                if (!"lobby".equals(gameClient.getCurrentScreen())) {
+                    return Mono.just(errorResult("Must be in lobby. Current screen: " + gameClient.getCurrentScreen()));
+                }
                 if (gameClient.getCurrentRoomId() == null) {
                     return Mono.just(errorResult("Not in a room."));
                 }
@@ -270,18 +491,30 @@ public class ClientMcpServer {
             "Request the list of available rooms from the server.",
             Map.of(),
             (exchange, args) -> {
-                if (!gameClient.isConnected()) {
-                    return Mono.just(errorResult("Not connected."));
+                if (!"lobby".equals(gameClient.getCurrentScreen())) {
+                    return Mono.just(errorResult("Must be in lobby. Current screen: " + gameClient.getCurrentScreen()));
                 }
                 gameClient.requestRoomList();
-                return Mono.just(successResult("Room list requested. Use get_screen_info to see results."));
+                return Mono.just(successResult("Room list requested."));
+            });
+
+        addTool("ui_back_to_lobby",
+            "Return to the lobby from any screen (gameover, game, etc.). Equivalent to clicking 'Volver al Lobby' on the game over screen.",
+            Map.of(),
+            (exchange, args) -> {
+                Platform.runLater(() -> gameClient.getScreenManager().showLobby());
+                return Mono.just(successResult("Returning to lobby... Use wait_for_screen lobby to confirm."));
             });
 
         addTool("ui_logout",
-            "Disconnect from the server and return to the login screen.",
+            "Disconnect from the server and return to the login screen. Only works from the lobby screen — use ui_back_to_lobby first if you are in game or gameover.",
             Map.of(),
             (exchange, args) -> {
-                gameClient.logout();
+                String screen = gameClient.getCurrentScreen();
+                if (!"lobby".equals(screen)) {
+                    return Mono.just(errorResult("Must be in lobby to logout. Current screen: " + screen + ". Use ui_back_to_lobby first."));
+                }
+                Platform.runLater(() -> gameClient.logout());
                 return Mono.just(successResult("Logged out."));
             });
     }
@@ -381,7 +614,7 @@ public class ClientMcpServer {
         actionProp.put("default", "click");
 
         addTool("send_key",
-            "Send a key press for game controls. Use press/release for movement (WASD), click for shooting. Q=swap weapon, E/F=use skills.",
+            "Send a key press for game controls. Use press/release for movement (WASD), click for shooting. Q=swap weapon, E/F=use skills. CLICK shoots toward where the mouse is pointing — use aim_at or mouse_move first to set aim direction.",
             Map.of("key", keyProp, "action", actionProp),
             (exchange, args) -> {
                 String key = ((String) args.get("key")).toUpperCase();
@@ -424,6 +657,222 @@ public class ClientMcpServer {
                 }
 
                 return Mono.just(successResult("Key " + key + " " + action));
+            });
+    }
+
+    private void registerGameControlTools() {
+        Map<String, Object> xProp = new HashMap<>();
+        xProp.put("type", "number");
+        xProp.put("description", "World X coordinate to aim at");
+        xProp.put("required", true);
+
+        Map<String, Object> yProp = new HashMap<>();
+        yProp.put("type", "number");
+        yProp.put("description", "World Y coordinate to aim at");
+        yProp.put("required", true);
+
+        addTool("aim_at",
+            "Aim the player's weapon toward a world coordinate. Calculates the screen position using the camera and moves the virtual mouse there. Follow with send_key CLICK to shoot.",
+            Map.of("x", xProp, "y", yProp),
+            (exchange, args) -> {
+                double targetX = ((Number) args.get("x")).doubleValue();
+                double targetY = ((Number) args.get("y")).doubleValue();
+                GameClientState clientState = gameClient.getClientState();
+                GameState gs = clientState.getCurrentState();
+                if (gs == null) return Mono.just(errorResult("No game state"));
+                Player me = gs.getPlayer(clientState.getLocalPlayerId());
+                if (me == null) return Mono.just(errorResult("Player not found"));
+                Camera camera = gameClient.getCamera();
+                double screenX = camera.worldToScreenX(targetX);
+                double screenY = camera.worldToScreenY(targetY);
+                inputHandler.setMousePosition(screenX, screenY);
+                JsonObject result = new JsonObject();
+                result.addProperty("aimed_at_x", targetX);
+                result.addProperty("aimed_at_y", targetY);
+                result.addProperty("screen_x", screenX);
+                result.addProperty("screen_y", screenY);
+                return Mono.just(successResult(gson.toJson(result)));
+            });
+
+        Map<String, Object> screenXProp = new HashMap<>();
+        screenXProp.put("type", "number");
+        screenXProp.put("description", "Screen X pixel position");
+        screenXProp.put("required", true);
+
+        Map<String, Object> screenYProp = new HashMap<>();
+        screenYProp.put("type", "number");
+        screenYProp.put("description", "Screen Y pixel position");
+        screenYProp.put("required", true);
+
+        addTool("mouse_move",
+            "Move the virtual mouse to a specific screen pixel position. Use this to precisely control where the player aims.",
+            Map.of("screen_x", screenXProp, "screen_y", screenYProp),
+            (exchange, args) -> {
+                double sx = ((Number) args.get("screen_x")).doubleValue();
+                double sy = ((Number) args.get("screen_y")).doubleValue();
+                inputHandler.setMousePosition(sx, sy);
+                JsonObject result = new JsonObject();
+                result.addProperty("screen_x", sx);
+                result.addProperty("screen_y", sy);
+                return Mono.just(successResult(gson.toJson(result)));
+            });
+
+        Map<String, Object> angleProp = new HashMap<>();
+        angleProp.put("type", "number");
+        angleProp.put("description", "Angle in degrees (0=right, 90=down, 180=left, 270=up)");
+        angleProp.put("required", true);
+
+        addTool("aim_direction",
+            "Aim the player's weapon in a specific direction by angle in degrees. 0=right, 90=down, 180=left, 270=up. Useful for aiming in cardinal or diagonal directions.",
+            Map.of("angle_degrees", angleProp),
+            (exchange, args) -> {
+                double angleDeg = ((Number) args.get("angle_degrees")).doubleValue();
+                double angleRad = Math.toRadians(angleDeg);
+                GameClientState clientState = gameClient.getClientState();
+                GameState gs = clientState.getCurrentState();
+                if (gs == null) return Mono.just(errorResult("No game state"));
+                Player me = gs.getPlayer(clientState.getLocalPlayerId());
+                if (me == null) return Mono.just(errorResult("Player not found"));
+                Camera camera = gameClient.getCamera();
+                double playerScreenX = camera.worldToScreenX(me.getPosition().x());
+                double playerScreenY = camera.worldToScreenY(me.getPosition().y());
+                double offset = 100;
+                double mouseX = playerScreenX + Math.cos(angleRad) * offset;
+                double mouseY = playerScreenY + Math.sin(angleRad) * offset;
+                inputHandler.setMousePosition(mouseX, mouseY);
+                JsonObject result = new JsonObject();
+                result.addProperty("angle_degrees", angleDeg);
+                result.addProperty("screen_x", mouseX);
+                result.addProperty("screen_y", mouseY);
+                return Mono.just(successResult(gson.toJson(result)));
+            });
+    }
+
+    private void registerGameObservabilityTools() {
+        addTool("get_other_players",
+            "Get information about all other players in the game: username, position, health, weapon, shield, kills, alive, direction.",
+            Map.of(),
+            (exchange, args) -> {
+                GameClientState clientState = gameClient.getClientState();
+                GameState gs = clientState.getCurrentState();
+                if (gs == null) return Mono.just(errorResult("No game state"));
+                String localId = clientState.getLocalPlayerId();
+                JsonArray playersArr = new JsonArray();
+                for (Player p : gs.getAllPlayers()) {
+                    if (p.getId().equals(localId)) continue;
+                    JsonObject po = new JsonObject();
+                    po.addProperty("username", p.getUsername());
+                    po.addProperty("x", p.getPosition().x());
+                    po.addProperty("y", p.getPosition().y());
+                    po.addProperty("health", p.getHealth());
+                    po.addProperty("max_health", p.getMaxHealth());
+                    po.addProperty("shield", p.getShield());
+                    po.addProperty("kills", p.getKills());
+                    po.addProperty("alive", p.isAlive());
+                    po.addProperty("direction_x", p.getDirection().x());
+                    po.addProperty("direction_y", p.getDirection().y());
+                    if (p.getCurrentWeapon() != null)
+                        po.addProperty("weapon", p.getCurrentWeapon().getDisplayName());
+                    playersArr.add(po);
+                }
+                JsonObject result = new JsonObject();
+                result.add("players", playersArr);
+                result.addProperty("count", playersArr.size());
+                return Mono.just(successResult(gson.toJson(result)));
+            });
+
+        addTool("get_bullets",
+            "Get all active bullets in the game: position, direction, speed, damage, owner.",
+            Map.of(),
+            (exchange, args) -> {
+                GameClientState clientState = gameClient.getClientState();
+                GameState gs = clientState.getCurrentState();
+                if (gs == null) return Mono.just(errorResult("No game state"));
+                JsonArray bulletsArr = new JsonArray();
+                for (Bullet b : gs.getAllBullets()) {
+                    JsonObject bo = new JsonObject();
+                    bo.addProperty("id", b.getId());
+                    bo.addProperty("x", b.getPosition().x());
+                    bo.addProperty("y", b.getPosition().y());
+                    bo.addProperty("direction_x", b.getDirection().x());
+                    bo.addProperty("direction_y", b.getDirection().y());
+                    bo.addProperty("speed", b.getSpeed());
+                    bo.addProperty("damage", b.getDamage());
+                    bo.addProperty("owner_id", b.getOwnerId());
+                    bulletsArr.add(bo);
+                }
+                JsonObject result = new JsonObject();
+                result.add("bullets", bulletsArr);
+                result.addProperty("count", bulletsArr.size());
+                return Mono.just(successResult(gson.toJson(result)));
+            });
+
+        addTool("get_map_pickups",
+            "Get all pickups on the map: weapon pickups (with weapon type) and power-up pickups (with power-up type), each with position.",
+            Map.of(),
+            (exchange, args) -> {
+                GameClientState clientState = gameClient.getClientState();
+                GameState gs = clientState.getCurrentState();
+                if (gs == null) return Mono.just(errorResult("No game state"));
+                JsonObject result = new JsonObject();
+                JsonArray weaponsArr = new JsonArray();
+                for (WeaponPickup wp : gs.getWeaponPickups()) {
+                    JsonObject wo = new JsonObject();
+                    wo.addProperty("id", wp.getId());
+                    wo.addProperty("x", wp.getPosition().x());
+                    wo.addProperty("y", wp.getPosition().y());
+                    wo.addProperty("weapon_type", wp.getWeaponType().name());
+                    wo.addProperty("display_name", wp.getWeaponType().getDisplayName());
+                    weaponsArr.add(wo);
+                }
+                result.add("weapon_pickups", weaponsArr);
+                JsonArray powerupsArr = new JsonArray();
+                for (PowerUpPickup pp : gs.getPowerUpPickups()) {
+                    JsonObject po = new JsonObject();
+                    po.addProperty("id", pp.getId());
+                    po.addProperty("x", pp.getPosition().x());
+                    po.addProperty("y", pp.getPosition().y());
+                    po.addProperty("power_up_type", pp.getType().name());
+                    powerupsArr.add(po);
+                }
+                result.add("power_up_pickups", powerupsArr);
+                result.addProperty("total", weaponsArr.size() + powerupsArr.size());
+                return Mono.just(successResult(gson.toJson(result)));
+            });
+    }
+
+    private void registerUiSyncTools() {
+        Map<String, Object> screenProp = new HashMap<>();
+        screenProp.put("type", "string");
+        screenProp.put("description", "Target screen: login, lobby, game, or gameover");
+        screenProp.put("required", true);
+
+        Map<String, Object> timeoutProp = new HashMap<>();
+        timeoutProp.put("type", "number");
+        timeoutProp.put("description", "Maximum time to wait in milliseconds (default 10000)");
+        timeoutProp.put("default", 10000);
+
+        addTool("wait_for_screen",
+            "Block until the client reaches a specific screen (login/lobby/game/gameover). Useful for synchronizing UI flow after login, room join, or game start. Returns immediately if already on the target screen.",
+            Map.of("screen", screenProp, "timeout_ms", timeoutProp),
+            (exchange, args) -> {
+                String targetScreen = (String) args.get("screen");
+                long timeoutMs = args.containsKey("timeout_ms")
+                    ? ((Number) args.get("timeout_ms")).longValue() : 10000;
+                long deadline = System.currentTimeMillis() + timeoutMs;
+                while (System.currentTimeMillis() < deadline) {
+                    if (targetScreen.equals(gameClient.getCurrentScreen())) {
+                        JsonObject result = new JsonObject();
+                        result.addProperty("screen", targetScreen);
+                        result.addProperty("elapsed_ms", timeoutMs - (deadline - System.currentTimeMillis()));
+                        return Mono.just(successResult(gson.toJson(result)));
+                    }
+                    try { Thread.sleep(200); } catch (InterruptedException e) {
+                        return Mono.just(errorResult("Interrupted"));
+                    }
+                }
+                return Mono.just(errorResult("Timeout waiting for screen: " + targetScreen
+                    + ". Current screen: " + gameClient.getCurrentScreen()));
             });
     }
 
