@@ -4,6 +4,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Tile map data loaded from a .tmj file.
+ * After loading and initialization, TileMap is treated as effectively immutable.
+ * The same instance is shared by GameMap and sent once via MapDataMessage.
+ * No code path mutates tile data after game start.
+ */
 public class TileMap {
     private int width;
     private int height;

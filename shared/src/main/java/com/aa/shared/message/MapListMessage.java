@@ -6,7 +6,7 @@ public class MapListMessage extends Message {
     private List<MapInfo> maps;
 
     public MapListMessage() {
-        super(MessageType.ROOM_LIST); // o crea MAP_LIST
+        super(MessageType.MAP_LIST);
     }
 
     public static class MapInfo {

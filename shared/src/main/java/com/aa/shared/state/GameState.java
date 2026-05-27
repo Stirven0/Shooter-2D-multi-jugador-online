@@ -6,7 +6,6 @@ import com.aa.shared.model.Bullet;
 import com.aa.shared.model.SkillSlot;
 import com.aa.shared.model.WeaponPickup;
 import com.aa.shared.model.PowerUpPickup;
-import com.aa.shared.model.TileMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -44,8 +43,6 @@ public class GameState {
     private List<WeaponPickup> weaponPickups = Collections.emptyList();
     private List<PowerUpPickup> powerUpPickups = Collections.emptyList();
 
-    // Tile map (Tiled format, sent to client for rendering)
-    private TileMap tileMap;
     
     public enum GameStatus {
         WAITING,    // Esperando jugadores
@@ -140,8 +137,6 @@ public class GameState {
     public List<PowerUpPickup> getPowerUpPickups() { return powerUpPickups; }
     public void setPowerUpPickups(List<PowerUpPickup> powerUpPickups) { this.powerUpPickups = powerUpPickups; }
 
-    public TileMap getTileMap() { return tileMap; }
-    public void setTileMap(TileMap tileMap) { this.tileMap = tileMap; }
     
     /**
      * Crea una copia superficial del estado para serialización.
@@ -161,7 +156,6 @@ public class GameState {
         copy.mapHeight = this.mapHeight;
         copy.weaponPickups = this.weaponPickups;
         copy.powerUpPickups = this.powerUpPickups;
-        copy.tileMap = this.tileMap;
         
         // Copiar jugadores y balas
         for (Player p : this.players.values()) {

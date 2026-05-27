@@ -4,6 +4,7 @@ import com.aa.client.asset.SpriteManager;
 import com.aa.shared.model.Bullet;
 import com.aa.shared.model.Obstacle;
 import com.aa.shared.model.Player;
+import com.aa.shared.model.TileMap;
 import com.aa.shared.model.PowerUpPickup;
 import com.aa.shared.model.PowerUpType;
 import com.aa.shared.model.SkillSlot;
@@ -22,11 +23,14 @@ public class Renderer {
     private final TileRenderer tileRenderer;
     private boolean showDebug = false;
     private double fps = 0;
+    private TileMap cachedTileMap;
 
     public Renderer(Camera camera) {
         this.camera = camera;
         this.tileRenderer = new TileRenderer(camera);
     }
+
+    public void setCachedTileMap(TileMap tileMap) { this.cachedTileMap = tileMap; }
 
     public void setShowDebug(boolean v) { this.showDebug = v; }
     public void setFps(double v) { this.fps = v; }
@@ -47,8 +51,8 @@ public class Renderer {
         }
 
         drawGrid(gc);
-        if (state.getTileMap() != null) {
-            tileRenderer.render(gc, state.getTileMap(), cw, ch);
+        if (cachedTileMap != null) {
+            tileRenderer.render(gc, cachedTileMap, cw, ch);
         } else {
             drawObstacles(gc, state.getObstacles());
         }

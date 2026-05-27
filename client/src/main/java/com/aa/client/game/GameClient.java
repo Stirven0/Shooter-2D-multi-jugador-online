@@ -167,6 +167,8 @@ public class GameClient implements ClientMessageListener {
         state.setInGame(false);
         state.setCurrentState(null);
         state.setLocalPlayerId(null);
+        state.setCachedTileMap(null);
+        renderer.setCachedTileMap(null);
         currentRoomId = null;
         currentUsername = null;
         network.close();
@@ -364,6 +366,11 @@ public class GameClient implements ClientMessageListener {
                         screenManager.getLobbyScreen().updateRoomList(rlm.getRooms());
                     }
                 }
+                case MAP_DATA -> {
+                    MapDataMessage mdm = (MapDataMessage) msg;
+                    state.setCachedTileMap(mdm.getTileMap());
+                    renderer.setCachedTileMap(mdm.getTileMap());
+                }
                 case GAME_STATE -> {
                     GameStateMessage gsm = (GameStateMessage) msg;
                     state.updateState(gsm.getGameState());
@@ -408,6 +415,8 @@ public class GameClient implements ClientMessageListener {
                     GameEndMessage gem = (GameEndMessage) msg;
                     state.setInGame(false);
                     state.setCurrentState(null);
+                    state.setCachedTileMap(null);
+                    renderer.setCachedTileMap(null);
                     System.out.println("[CLIENT] Partida terminada, ganador: " + gem.getWinnerUsername());
                     screenManager.showGameOver(gem);
                 }

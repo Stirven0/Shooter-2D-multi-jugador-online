@@ -11,6 +11,8 @@ import com.aa.shared.message.GameEndMessage;
 import com.aa.shared.message.GameStateMessage;
 import com.aa.shared.message.IdleWarningMessage;
 import com.aa.shared.message.KickedIdleMessage;
+import com.aa.shared.message.MapDataMessage;
+import com.aa.shared.model.TileMap;
 import com.aa.shared.model.Player;
 import com.aa.shared.model.PowerUpPickup;
 import com.aa.shared.model.PowerUpType;
@@ -60,7 +62,6 @@ public class GameInstance {
         this.state.setObstacles(map.obstacles());
         this.state.setMapWidth(map.width());
         this.state.setMapHeight(map.height());
-        this.state.setTileMap(map.getTileMap());
         this.engine = new GameEngine();
 
         for (String playerId : room.getPlayerIds()) {
@@ -99,6 +100,18 @@ public class GameInstance {
     public void start() {
         state.setStatus(GameState.GameStatus.PLAYING);
         state.setStartTime(System.currentTimeMillis());
+
+        // Send tile map data once, not on every tick
+        TileMap tileMap = map.getTileMap();
+        if (tileMap != null) {
+            MapDataMessage mapDataMsg = new MapDataMessage(map.mapId(), tileMap);
+            if (messageSender != null) {
+                for (String pid : room.getPlayerIds()) {
+                    messageSender.accept(pid, mapDataMsg);
+                }
+            }
+        }
+
         loop.start();
     }
 

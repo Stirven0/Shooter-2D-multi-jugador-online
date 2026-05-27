@@ -145,6 +145,8 @@ public class JsonUtil {
                 case ERROR -> ErrorMessage.class;
                 case PING -> PingMessage.class;
                 case PONG -> PongMessage.class;
+                case MAP_DATA -> MapDataMessage.class;
+                case MAP_LIST -> MapListMessage.class;
                 case ROOM_LIST_RESPONSE -> RoomListResponseMessage.class;
                 case RECONNECT -> ReconnectMessage.class;
                 case IDLE_WARNING -> IdleWarningMessage.class;
