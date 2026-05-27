@@ -43,5 +43,13 @@
 - TitleBarTest (5 tests): título, cerrar, minimizar
 - Infraestructura: TestFX 4.0.18 + JUnit 5 + Mockito, headless via Xvfb
 
+### Refactoring MCP del cliente (completado, Mayo 26 2026)
+- ClientMcpServer dividido en 11 archivos aplicando SOLID y patrones de diseño
+- Transport layer: McpTransport (interface), McpTcpTransport, McpStdioTransport (Strategy)
+- McpToolRegistry centraliza registro de 22 tools, McpJsonRpcHandler para protocolo TCP
+- McpGameContext unifica acceso a GameState (elimina 6+ patrones repetidos)
+- 6 tool providers en mcp/tools/: StatusTools, UiTools, UiSyncTools, GameTools, GameControlTools, GameObservabilityTools
+- Agregar una tool nueva = editar 1 archivo (OCP), sin tocar ClientMcpServer
+
 ## Pendiente
 - Revisar FASE 5 si aplica (no planificada)

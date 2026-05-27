@@ -235,3 +235,4 @@ snapshots/debug/
 .idea/httpRequests/
 .idea/dataSources/
 .idea/dataSources.local.xml
+.worktrees/

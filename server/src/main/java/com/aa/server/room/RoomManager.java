@@ -37,6 +37,8 @@ public class RoomManager {
             room.removePlayer(playerId);
             if (room.getPlayerCount() == 0) {
                 rooms.remove(roomId);
+            } else if (room.isHost(playerId)) {
+                room.transferHostIfEmpty();
             }
         }
     }

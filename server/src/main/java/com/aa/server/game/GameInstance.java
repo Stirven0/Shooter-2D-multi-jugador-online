@@ -98,6 +98,7 @@ public class GameInstance {
     }
 
     public void start() {
+        System.out.println("[GAME] GameInstance.start() called for " + gameId);
         state.setStatus(GameState.GameStatus.PLAYING);
         state.setStartTime(System.currentTimeMillis());
 
@@ -113,6 +114,7 @@ public class GameInstance {
         }
 
         loop.start();
+        System.out.println("[GAME] GameInstance.start() loop thread started for " + gameId);
     }
 
     public void stop() {

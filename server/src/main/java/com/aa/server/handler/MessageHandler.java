@@ -188,6 +188,7 @@ public class MessageHandler {
         update.setRoomId(room.getRoomId());
         update.setPlayerIds(new ArrayList<>(room.getPlayerIds()));
         update.setStatus(room.getStatus().name());
+        update.setHostId(room.getHostId());
 
         for (String pid : room.getPlayerIds()) {
             ClientConnection c = connectionManager.getByPlayerId(pid);

@@ -6,7 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class Room {
     private final String roomId;
-    private final String hostId;
+    private volatile String hostId;
     private final String mapId;
     private final Set<String> playerIds = ConcurrentHashMap.newKeySet();
     private volatile RoomStatus status = RoomStatus.WAITING;
@@ -37,6 +37,16 @@ public class Room {
 
     public boolean isHost(String playerId) {
         return hostId.equals(playerId);
+    }
+
+    public boolean transferHostIfEmpty() {
+        if (!playerIds.isEmpty() && !playerIds.contains(hostId)) {
+            String newHost = playerIds.iterator().next();
+            hostId = newHost;
+            System.out.println("[ROOM] Host transferido: " + roomId + " nuevo host=" + newHost);
+            return true;
+        }
+        return false;
     }
 
     // Getters

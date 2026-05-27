@@ -40,6 +40,11 @@
             <artifactId>javafx-fxml</artifactId>
             <version>25</version>
         </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-swing</artifactId>
+            <version>25</version>
+        </dependency>
 
         <!-- WebSocket client -->
         <dependency>
@@ -103,7 +108,8 @@
                 <version>0.0.8</version>
                 <configuration>
                     <mainClass>com.aa.client.Main</mainClass>
-                    <launcher>app</launcher>        
+                    <launcher>app</launcher>
+                    <fork>false</fork>
                 </configuration>
             </plugin>
             <plugin>

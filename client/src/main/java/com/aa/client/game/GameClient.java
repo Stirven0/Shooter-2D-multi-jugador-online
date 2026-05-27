@@ -10,19 +10,12 @@ import com.aa.client.ui.ScreenManager;
 import com.aa.client.util.ClientConfig;
 import com.aa.shared.message.*;
 import com.aa.shared.model.Player;
-import com.aa.shared.model.WeaponType;
 import com.aa.shared.state.GameState;
 import com.google.gson.JsonObject;
 import java.net.URI;
 import javafx.application.Platform;
 import javafx.scene.canvas.GraphicsContext;
 
-/**
- * Cliente principal del juego.
- * Gestiona la conexión con el servidor, el envío de entrada del jugador,
- * la recepción de mensajes y la actualización del estado del juego.
- * Implementa ClientMessageListener para recibir callbacks de red.
- */
 public class GameClient implements ClientMessageListener {
 
     private NetworkClient network;
@@ -39,11 +32,9 @@ public class GameClient implements ClientMessageListener {
     private volatile double fps = 0;
     private volatile int idleWarningSeconds = 0;
     private volatile java.util.List<BuffUpdateMessage.ActiveBuff> activeBuffs = java.util.Collections.emptyList();
+    private volatile String lastError = null;
+    private volatile String currentScreen = "login";
 
-    /**
-     * Construye el GameClient y sus componentes internos.
-     * @param screenManager gestor de pantallas para navegación
-     */
     public GameClient(ScreenManager screenManager) {
         this.screenManager = screenManager;
         this.state = new GameClientState();
@@ -54,53 +45,26 @@ public class GameClient implements ClientMessageListener {
     }
 
     private NetworkClient createNetworkClient() {
-        return new NetworkClient(URI.create(ClientConfig.SERVER_URL), this);
+        return new NetworkClient(URI.create(ClientConfig.getServerUrl()), this);
     }
 
-    /** @return ID de la sala actual, o null si no está en una */
-    public String getCurrentRoomId() {
-        return currentRoomId;
-    }
-
-    /** @return el ScreenManager asociado */
-    public ScreenManager getScreenManager() {
-        return screenManager;
-    }
-
-    /** Establece el ID de la sala actual. */
-    public void setCurrentRoomId(String roomId) {
-        this.currentRoomId = roomId;
-    }
-
-    /** @return nombre de usuario actual */
+    public String getCurrentRoomId() { return currentRoomId; }
+    public ScreenManager getScreenManager() { return screenManager; }
+    public void setCurrentRoomId(String roomId) { this.currentRoomId = roomId; }
     public String getCurrentUsername() { return currentUsername; }
-
-    /** Establece el nombre de usuario. */
     public void setCurrentUsername(String username) { this.currentUsername = username; }
-
-    /** @return true si el jugador está en una partida activa */
     public boolean isInGame() { return state.isInGame(); }
 
-    /**
-     * Conecta al servidor WebSocket de forma bloqueante.
-     * Debe llamarse desde un hilo background, NO desde el JavaFX thread.
-     * @return true si la conexión fue exitosa
-     */
     public boolean connect() {
         try {
-            System.out.println(
-                "[CLIENT] Conectando a " + ClientConfig.SERVER_URL
-            );
-            if (network.isClosed()) {
-                System.out.println("[CLIENT] Recreando NetworkClient (estaba cerrado)");
-                network = createNetworkClient();
-            }
+            System.out.println("[CLIENT] Conectando a " + ClientConfig.getServerUrl());
+            network = createNetworkClient();
             boolean ok = network.connectBlocking(5000);
             if (ok) {
                 System.out.println("[CLIENT] Conectado exitosamente");
                 return true;
             } else {
-                System.err.println("[CLIENT] Timeout de conexión");
+                System.err.println("[CLIENT] Timeout de conexi\u00f3n");
                 return false;
             }
         } catch (InterruptedException e) {
@@ -112,18 +76,11 @@ public class GameClient implements ClientMessageListener {
         }
     }
 
-    /**
-     * Envía una solicitud de login o registro al servidor.
-     * @param username nombre de usuario
-     * @param password contraseña
-     * @param register true para registrar, false para iniciar sesión
-     */
     public void sendLogin(String username, String password, boolean register) {
         System.out.println("[CLIENT] Enviando login para: " + username + " register=" + register);
         network.sendMessage(new LoginMessage(username, password, register));
     }
 
-    /** Solicita la creación de una nueva sala. */
     public void createRoom(String mapId) {
         JsonObject obj = new JsonObject();
         obj.addProperty("type", "CREATE_ROOM");
@@ -131,7 +88,6 @@ public class GameClient implements ClientMessageListener {
         network.sendJson(obj);
     }
 
-    /** Solicita unirse a una sala existente. */
     public void joinRoom(String roomId) {
         JsonObject obj = new JsonObject();
         obj.addProperty("type", "JOIN_ROOM");
@@ -139,29 +95,27 @@ public class GameClient implements ClientMessageListener {
         network.sendJson(obj);
     }
 
-    /** Solicita iniciar la partida (solo el anfitrión). */
     public void startGame() {
         JsonObject obj = new JsonObject();
         obj.addProperty("type", "GAME_START");
         network.sendJson(obj);
     }
 
-    /** Abandona la sala actual. */
     public void leaveRoom() {
         JsonObject obj = new JsonObject();
         obj.addProperty("type", "LEAVE_ROOM");
         network.sendJson(obj);
+        state.setInGame(false);
+        state.setCurrentState(null);
         currentRoomId = null;
     }
 
-    /** Solicita la lista de salas disponibles. */
     public void requestRoomList() {
         JsonObject obj = new JsonObject();
         obj.addProperty("type", "ROOM_LIST");
         network.sendJson(obj);
     }
 
-    /** Cierra sesión y vuelve a la pantalla de login. */
     public void logout() {
         connected = false;
         state.setInGame(false);
@@ -175,54 +129,26 @@ public class GameClient implements ClientMessageListener {
         screenManager.showLogin();
     }
 
-    /** Pausa o reanuda el envío de entrada al servidor. */
     public void setPaused(boolean paused) { this.paused = paused; }
-
-    /** @return true si el overlay de depuración está activo */
     public boolean isShowDebug() { return showDebug; }
-
-    /** Activa/desactiva el overlay de depuración. */
     public void setShowDebug(boolean v) { this.showDebug = v; }
-
-    /** @return FPS actuales medidos */
     public double getFps() { return fps; }
-
-    /** Establece los FPS para mostrarlos en pantalla. */
     public void setFps(double v) { this.fps = v; }
-
-    /** @return true si hay conexión activa con el servidor */
     public boolean isConnected() { return connected; }
-
-    /** @return el renderizador */
     public Renderer getRenderer() { return renderer; }
-
-    /** @return la cámara */
     public Camera getCamera() { return camera; }
-
-    /** @return el estado thread-safe del cliente */
     public GameClientState getClientState() { return state; }
-
-    /** @return segundos restantes antes de expulsión por inactividad (0 = sin advertencia) */
     public int getIdleWarningSeconds() { return idleWarningSeconds; }
-
     public java.util.List<BuffUpdateMessage.ActiveBuff> getActiveBuffs() { return activeBuffs; }
-
-    /** Establece los segundos de advertencia por inactividad. */
     public void setIdleWarningSeconds(int seconds) { this.idleWarningSeconds = seconds; }
-
-    /** @return el manejador de entrada */
-    public InputHandler getInputHandler() {
-        return inputHandler;
-    }
+    public InputHandler getInputHandler() { return inputHandler; }
+    public String getLastError() { return lastError; }
+    public void setLastError(String err) { this.lastError = err; }
+    public String getCurrentScreen() { return currentScreen; }
+    public void setCurrentScreen(String screen) { this.currentScreen = screen; }
 
     private int frameCount = 0;
 
-    /**
-     * Actualiza el estado del juego cada frame.
-     * Envía entrada al servidor, sigue a la cámara y renderiza.
-     * @param input manejador de entrada del jugador
-     * @param gc contexto gráfico para renderizar
-     */
     public void update(InputHandler input, GraphicsContext gc) {
         frameCount++;
         if (frameCount % 60 == 0) {
@@ -260,7 +186,6 @@ public class GameClient implements ClientMessageListener {
                         try {
                             camera.setBounds(gs.getMapWidth(), gs.getMapHeight());
                         } catch (Throwable thr) {
-                            // ignorar - clase desactualizada, se corrige con mvn clean install
                         }
                     }
                     camera.follow(local.getPosition());
@@ -277,7 +202,6 @@ public class GameClient implements ClientMessageListener {
         }
     }
 
-    /** Obtiene el jugador local desde el estado actual. */
     private Player getLocalPlayer() {
         GameState gs = state.getCurrentState();
         if (gs == null || state.getLocalPlayerId() == null) return null;
@@ -288,6 +212,7 @@ public class GameClient implements ClientMessageListener {
     public void onConnected() {
         connected = true;
         System.out.println("[CLIENT] Callback onConnected");
+        Platform.runLater(() -> screenManager.showNotification("Conectado al servidor", false));
     }
 
     @Override
@@ -295,8 +220,14 @@ public class GameClient implements ClientMessageListener {
         connected = false;
         boolean wasInGame = state.isInGame();
         state.setInGame(false);
+        currentScreen = "login";
         if (wasInGame) {
-            Platform.runLater(() -> screenManager.showLobby());
+            Platform.runLater(() -> {
+                screenManager.showLobby();
+                screenManager.showNotification("Desconectado del servidor", true);
+            });
+        } else {
+            Platform.runLater(() -> screenManager.showNotification("Desconectado: " + reason, true));
         }
         System.out.println("[CLIENT] Desconectado: " + reason + " wasInGame=" + wasInGame);
     }
@@ -309,12 +240,9 @@ public class GameClient implements ClientMessageListener {
     @Override
     public void onError(String code, String description) {
         System.err.println("[CLIENT] Error " + code + ": " + description);
+        Platform.runLater(() -> screenManager.showNotification(code + ": " + description, true));
     }
 
-    /**
-     * Procesa los mensajes entrantes del servidor en el JavaFX thread.
-     * Maneja login, salas, estado del juego, advertencias y fin de partida.
-     */
     private void handleMessage(Message msg) {
         try {
             System.out.println("[CLIENT] Recibido: " + msg.getType());
@@ -323,17 +251,21 @@ public class GameClient implements ClientMessageListener {
                 case LOGIN_RESPONSE -> {
                     LoginResponseMessage resp = (LoginResponseMessage) msg;
                     if (resp.isSuccess()) {
+                        lastError = null;
                         state.setLocalPlayerId(resp.getUserId());
                         currentUsername = resp.getUsername();
                         System.out.println("[CLIENT] Login exitoso, userId: " + resp.getUserId());
+                        currentScreen = "lobby";
                         screenManager.showLobby();
                     } else {
                         String err = resp.getErrorMessage();
+                        lastError = err;
                         System.err.println("[CLIENT] Login fallido: " + err);
                         screenManager.showLoginError(err);
                     }
                 }
                 case ROOM_CREATED -> {
+                    lastError = null;
                     RoomCreatedMessage rcm = (RoomCreatedMessage) msg;
                     this.currentRoomId = rcm.getRoomId();
                     System.out.println("[CLIENT] Sala creada: " + rcm.getRoomId());
@@ -344,16 +276,19 @@ public class GameClient implements ClientMessageListener {
                 case ROOM_UPDATED -> {
                     RoomUpdatedMessage rum = (RoomUpdatedMessage) msg;
                     if (screenManager.getLobbyScreen() != null) {
-                        screenManager.getLobbyScreen().updatePlayerList(rum.getPlayerIds());
+                        screenManager.getLobbyScreen().updatePlayerList(rum.getPlayerIds(), rum.getHostId());
                     }
+
                 }
                 case JOIN_ROOM_RESPONSE -> {
                     JoinRoomResponseMessage jrm = (JoinRoomResponseMessage) msg;
                     if (jrm.isSuccess()) {
+                        lastError = null;
                         this.currentRoomId = jrm.getRoomId();
                         System.out.println("[CLIENT] Unido a sala: " + jrm.getRoomId());
                     } else {
                         String err = jrm.getMessage();
+                        lastError = err;
                         System.err.println("[CLIENT] Error al unirse: " + err);
                         if (screenManager.getLobbyScreen() != null) {
                             screenManager.getLobbyScreen().setError(err);
@@ -365,6 +300,7 @@ public class GameClient implements ClientMessageListener {
                     if (screenManager.getLobbyScreen() != null) {
                         screenManager.getLobbyScreen().updateRoomList(rlm.getRooms());
                     }
+
                 }
                 case MAP_DATA -> {
                     MapDataMessage mdm = (MapDataMessage) msg;
@@ -375,8 +311,14 @@ public class GameClient implements ClientMessageListener {
                     GameStateMessage gsm = (GameStateMessage) msg;
                     state.updateState(gsm.getGameState());
                     if (!state.isInGame()) {
+                        var gs = gsm.getGameState();
+                        if (gs != null && currentRoomId != null && !currentRoomId.equals(gs.getGameId())) {
+                            System.out.println("[CLIENT] Ignorando GAME_STATE de otra sala: " + gs.getGameId());
+                            break;
+                        }
                         state.setInGame(true);
                         idleWarningSeconds = 0;
+                        currentScreen = "game";
                         screenManager.showGame();
                         AudioManager.stopMusic();
                         AudioManager.playMusic("music/battle_theme_01.mp3");
@@ -385,6 +327,7 @@ public class GameClient implements ClientMessageListener {
                 case PING -> {}
                 case ERROR -> {
                     ErrorMessage err = (ErrorMessage) msg;
+                    lastError = err.getMessage();
                     System.err.println("[CLIENT] Server error: " + err.getMessage());
                     if (screenManager.getLobbyScreen() != null) {
                         screenManager.getLobbyScreen().setError(err.getMessage());
@@ -417,6 +360,7 @@ public class GameClient implements ClientMessageListener {
                     state.setCurrentState(null);
                     state.setCachedTileMap(null);
                     renderer.setCachedTileMap(null);
+                    currentScreen = "gameover";
                     System.out.println("[CLIENT] Partida terminada, ganador: " + gem.getWinnerUsername());
                     screenManager.showGameOver(gem);
                 }

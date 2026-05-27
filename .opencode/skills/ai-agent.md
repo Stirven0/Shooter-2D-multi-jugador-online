@@ -51,3 +51,8 @@ Ask Claude: "Connect to the multiplayer game and play as ai_player. Move around,
 - `swap_weapon()` - Switch weapon slot
 - `use_skill(slot)` - Activate skill
 - `get_inventory` - Check weapons and buffs
+
+## Notes
+
+- The bridge has an autonomous AI loop that moves toward enemies and shoots. To disable it, stop the bridge process.
+- All game interactions (login, room creation, game start) must go through MCP tools. No auto-login CLI flags exist.`

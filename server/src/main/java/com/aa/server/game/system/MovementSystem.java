@@ -26,10 +26,16 @@ public class MovementSystem implements GameSystem {
 
             MoveMessage msg = (MoveMessage) input.message();
             Player player = state.getPlayer(input.playerId());
-            if (player == null || !player.isAlive()) continue;
+            if (player == null || !player.isAlive()) {
+                System.out.println("[MOVE] Player null or dead: " + input.playerId() + " alive=" + (player != null ? player.isAlive() : "N/A"));
+                continue;
+            }
 
             double dx = clamp(msg.getDx(), -1.0, 1.0);
             double dy = clamp(msg.getDy(), -1.0, 1.0);
+            
+            System.out.println("[MOVE] " + player.getUsername() + " dx=" + dx + " dy=" + dy + " from=(" + player.getPosition().x() + "," + player.getPosition().y() + ")");
+
 
             double baseSpeed = msg.isSprinting() ? ServerConfig.PLAYER_SPRINT_SPEED : ServerConfig.PLAYER_SPEED;
 
@@ -58,11 +64,14 @@ public class MovementSystem implements GameSystem {
                 Vector2 newPos = new Vector2(newX, newY);
 
                 if (map.collides(newPos, ServerConfig.PLAYER_RADIUS)) {
+                    System.out.println("[MOVE] " + player.getUsername() + " COLLIDED at (" + newX + "," + newY + ")");
                     continue;
                 }
 
                 player.setPosition(newPos);
+                System.out.println("[MOVE] " + player.getUsername() + " MOVED to (" + newX + "," + newY + ")");
             } else {
+                System.out.println("[MOVE] MAP IS NULL for " + player.getUsername());
                 player.setPosition(new Vector2(newX, newY));
             }
             player.setDirection(new Vector2(dx, dy).normalize());
