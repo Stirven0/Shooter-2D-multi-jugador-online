@@ -148,6 +148,8 @@ public class GameClient implements ClientMessageListener {
     public void setCurrentScreen(String screen) { this.currentScreen = screen; }
 
     private int frameCount = 0;
+    private long lastMoveSendTime = 0;
+    private static final long MOVE_INPUT_INTERVAL_MS = 50;
 
     public void update(InputHandler input, GraphicsContext gc) {
         frameCount++;
@@ -157,8 +159,10 @@ public class GameClient implements ClientMessageListener {
         try {
             if (connected && state.isInGame()) {
                 if (!paused) {
-                    if (input.isMoving()) {
+                    long now = System.currentTimeMillis();
+                    if (input.isMoving() && now - lastMoveSendTime >= MOVE_INPUT_INTERVAL_MS) {
                         network.sendMessage(input.getMoveMessage());
+                        lastMoveSendTime = now;
                     }
                     if (input.isShooting()) {
                         Player local = getLocalPlayer();
@@ -276,7 +280,7 @@ public class GameClient implements ClientMessageListener {
                 case ROOM_UPDATED -> {
                     RoomUpdatedMessage rum = (RoomUpdatedMessage) msg;
                     if (screenManager.getLobbyScreen() != null) {
-                        screenManager.getLobbyScreen().updatePlayerList(rum.getPlayerIds(), rum.getHostId());
+                        screenManager.getLobbyScreen().updatePlayerList(rum.getPlayerIds(), rum.getHostId(), rum.getPlayerUsernames());
                     }
 
                 }

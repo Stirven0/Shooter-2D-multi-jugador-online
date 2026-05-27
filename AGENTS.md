@@ -38,7 +38,7 @@ Nota: Los count de tests cambian — ejecutar los comandos para ver cifras actua
 - **Thread safety**: Only GameLoop mutates GameState. Network thread enqueues inputs via `ConcurrentLinkedQueue` in `GameInstance`.
 - **JSON**: Use `JsonUtil.toJson()` / `parseMessage()` exclusively. Never manual parse except for lobby messages in MessageHandler.
 - **Broadcast**: Always `state.copy()` before serializing. Never send mutable GameState reference.
-- **GameLoop**: Fixed 30Hz timestep (`ServerConfig.TICK_RATE`). Drift resets `nextTick` to avoid death spiral.
+- **GameLoop**: Fixed 20Hz timestep (`ServerConfig.TICK_RATE`, configurable). Drift resets `nextTick` to avoid death spiral.
 - **Weapon System**: 5 tipos (PISTOL/SHOTGUN/RIFLE/SNIPER/SMG), 2 slots (primaria/secundaria), Q para swap. Stats embebidos en enum `WeaponType`. Pickups spawn aleatorios en mapa (PISTOL excluido de spawn).
 - **Power-ups**: 7 tipos (Speed/Damage+/FireRate/Shield/Health, Slow/Debilidad como debuffs). Temporales (15s) con respawn. Se recogen automáticamente al colisionar.
 - **Upgrade System**: 5 niveles por kills acumulados en partida (2/5/9/14/20). Mejoras pasivas: daño, cadencia, velocidad, HP max, reducción daño. Persiste al morir.
@@ -100,8 +100,8 @@ mvn javafx:run -pl client -Djavafx.args="--mcp --host 10.0.0.5 --portmcp 9000"
 - **Reconnection (server-only)**: Server valida token + encola reactivación en `GameInstance`. Cliente nunca inicia reconexión — al desconectar resetea a lobby.
 - **PING/PONG**: Server tracks nothing. Client ignores PING, server ignores PONG. No latency tracking.
 - **Byte Buddy + JDK 25**: Requiere `-Dnet.bytebuddy.experimental=true`. Ya está en `argLine` del surefire plugin en ambos módulos.
-- **ServerConfig hardcodes values** (TICK_RATE=30, PLAYER_SPEED=200, etc.): No carga `.env` pese a existir `.env.example`. Editar `ServerConfig.java` para cambiar. Atención: `.env.example` tiene `TICK_RATE=20` — no coincide con el hardcode de `30`.
-- **GameLoop.java** comentario dice "20 Hz" pero realmente usa `ServerConfig.TICK_DURATION_MS` (~33ms = 30Hz). No confiar en el comentario.
+- **ServerConfig reads system properties**: Con fallback a defaults. Usar `-DKEY=value` para override (ej. `-DTICK_RATE=20`). Los defaults están sincronizados con `.env.example`. Ya no es hardcode.
+- **GameLoop.java** usa `ServerConfig.TICK_RATE` (default 20 Hz, configurable vía system property).
 - **No CI/CD**: No `.github`, no Actions, no pre-commit hooks.
 - **Unused `MessageType` values**: `ROTATE_INPUT`, `DELTA_STATE`, `ENTITY_SPAWN`, `ENTITY_DESTROY`, `PLAYER_DEATH` definidos en enum pero sin cablear en `MessageAdapter` ni handlers. `USE_ABILITY` renombrado a `USE_SKILL`.
 - **MCP AsyncServer no tiene `start()`**: `McpServer.async(transport).build()` devuelve servidor ya iniciado. Usar `server.addTool()` post-build para registrar tools.
@@ -150,7 +150,7 @@ tools/      → Python test scripts (test_client.py, load_test.py, multi_client_
 
 ## DB & Config (detalle)
 - **DB_URL/DB_USER/DB_PASSWORD** se leen de system properties (no de .env). Default: SQLite `shooter.db`.
-- **ServerConfig hardcodea** TICK_RATE (30), PLAYER_SPEED, etc. Editar el .java; no carga .env. `.env.example` tiene TICK_RATE=20 pero el código usa 30.
+- **ServerConfig lee system properties**: Con fallback a defaults. Usar `-DKEY=value` para override (ej. `-DTICK_RATE=20`). `.env.example` está sincronizado.
 - HikariCP pool. `DatabaseManager.initForTest()` usa SQLite in-memory.
 - Tablas: `users` (auth) y `player_stats` (kills/deaths/wins/games/upgrade_points).
 

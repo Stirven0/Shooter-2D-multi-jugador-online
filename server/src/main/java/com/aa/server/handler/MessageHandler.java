@@ -13,6 +13,8 @@ import com.aa.server.util.ServerConfig;
 import com.aa.shared.message.*;
 import com.aa.shared.util.JsonUtil;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Router central de mensajes del servidor.
@@ -189,6 +191,12 @@ public class MessageHandler {
         update.setPlayerIds(new ArrayList<>(room.getPlayerIds()));
         update.setStatus(room.getStatus().name());
         update.setHostId(room.getHostId());
+        Map<String, String> usernames = new HashMap<>();
+        for (String pid : room.getPlayerIds()) {
+            ClientConnection c = connectionManager.getByPlayerId(pid);
+            usernames.put(pid, c != null ? c.getUsername() : pid);
+        }
+        update.setPlayerUsernames(usernames);
 
         for (String pid : room.getPlayerIds()) {
             ClientConnection c = connectionManager.getByPlayerId(pid);

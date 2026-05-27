@@ -251,24 +251,22 @@ public class Renderer {
     }
 
     private void drawDebugOverlay(GraphicsContext gc, GameState state, String localPlayerId) {
-        // double cw = gc.getCanvas().getWidth();
-        // double ch = gc.getCanvas().getHeight();
-
         gc.setFill(Color.rgb(13, 17, 23, 0.75));
-        gc.fillRoundRect(5, 5, 240, 200, 6, 6);
+        gc.fillRoundRect(5, 5, 240, 210, 6, 6);
         gc.setStroke(Color.rgb(48, 54, 61));
         gc.setLineWidth(1);
-        gc.strokeRoundRect(5, 5, 240, 200, 6, 6);
+        gc.strokeRoundRect(5, 5, 240, 210, 6, 6);
 
         gc.setFill(Color.rgb(88, 166, 255));
         gc.setFont(Font.font("Monospace", 12));
+        gc.setTextAlign(TextAlignment.LEFT);
 
         Player local = state.getPlayer(localPlayerId);
         int alive = (int) state.getAllPlayers().stream().filter(Player::isAlive).count();
         int total = state.getAllPlayers().size();
 
         int y = 22;
-        int lh = 15;
+        int lh = 16;
         gc.fillText(String.format("FPS: %.0f", fps), 12, y); y += lh;
         gc.fillText("Tick: " + state.getTick(), 12, y); y += lh;
         gc.fillText("Jugadores: " + alive + "/" + total + " vivos", 12, y); y += lh;

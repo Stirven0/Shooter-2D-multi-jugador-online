@@ -8,8 +8,8 @@ import com.aa.shared.message.GameEndMessage;
 
 /**
  * Bucle principal de la partida.
- * Ejecuta un ciclo fijo a 20 Hz (configurable) que procesa ticks,
- * detecta fin de partida y transmite el estado a los jugadores.
+ * Ejecuta un ciclo fijo a la frecuencia definida en ServerConfig.TICK_RATE
+ * (default 20 Hz). Procesa ticks, detecta fin de partida y transmite estado.
  * Implementa corrección de deriva temporal para mantener la frecuencia.
  */
 public class GameLoop implements Runnable {

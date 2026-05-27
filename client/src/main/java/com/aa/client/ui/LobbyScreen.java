@@ -222,13 +222,15 @@ public class LobbyScreen {
         root.setTop(TitleBar.create("Lobby", stage, true));
         root.setCenter(stack);
 
-        Scene scene = new Scene(root, ClientConfig.WIDTH, ClientConfig.HEIGHT + TitleBar.HEIGHT);
+        Scene scene = new Scene(root);
 
         gameClient.requestRoomList();
 
         refreshTimer = new Timeline(new KeyFrame(Duration.seconds(3), e -> gameClient.requestRoomList()));
         refreshTimer.setCycleCount(Timeline.INDEFINITE);
         refreshTimer.play();
+
+        ScreenManager.addFullScreenHandler(scene, gameClient.getScreenManager());
 
         return scene;
     }
@@ -271,7 +273,7 @@ public class LobbyScreen {
         });
     }
 
-    public void updatePlayerList(List<String> playerIds, String hostId) {
+    public void updatePlayerList(List<String> playerIds, String hostId, Map<String, String> usernames) {
         this.currentHostId = hostId;
         Platform.runLater(() -> {
             playerList.getItems().clear();
@@ -279,7 +281,8 @@ public class LobbyScreen {
             for (String pid : playerIds) {
                 boolean isHost = pid.equals(hostId);
                 boolean isMe = pid.equals(localId);
-                String display = (isHost ? "👑 " : "   ") + pid;
+                String name = usernames != null ? usernames.getOrDefault(pid, pid) : pid;
+                String display = (isHost ? "👑 " : "   ") + name;
                 if (isMe) display += " (tú)";
                 playerList.getItems().add(display);
             }

@@ -63,7 +63,7 @@ public class LoginScreen {
     public Scene createScene(Stage stage) {
         VBox form = new VBox(12);
         form.setAlignment(Pos.CENTER);
-        form.setMaxWidth(320);
+        form.setMaxSize(320, javafx.scene.layout.Region.USE_PREF_SIZE);
         form.setStyle(Styles.PANEL);
 
         Label title = new Label("MULTIPLAYER\nSHOOTER");
@@ -131,7 +131,8 @@ public class LoginScreen {
         root.setTop(TitleBar.create("Shooter Game", stage));
         root.setCenter(centerStack);
 
-        Scene scene = new Scene(root, ClientConfig.WIDTH, ClientConfig.HEIGHT + TitleBar.HEIGHT);
+        Scene scene = new Scene(root);
+        ScreenManager.addFullScreenHandler(scene, gameClient.getScreenManager());
         return scene;
     }
 

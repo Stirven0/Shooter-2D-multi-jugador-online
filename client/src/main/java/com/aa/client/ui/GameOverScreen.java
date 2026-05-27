@@ -112,6 +112,8 @@ public class GameOverScreen {
         root.setTop(TitleBar.create("Game Over", stage));
         root.setCenter(content);
 
-        return new Scene(root, ClientConfig.WIDTH, ClientConfig.HEIGHT + TitleBar.HEIGHT);
+        Scene scene = new Scene(root);
+        ScreenManager.addFullScreenHandler(scene, gameClient.getScreenManager());
+        return scene;
     }
 }

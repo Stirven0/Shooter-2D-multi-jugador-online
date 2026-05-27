@@ -40,10 +40,10 @@ public final class TileColors {
     }
 
     private static Color generateColor(int tileId) {
-        int hash = tileId * 2654435761;
-        int r = (hash & 0xFF) % 80 + 20;
-        int g = ((hash >> 8) & 0xFF) % 80 + 20;
-        int b = ((hash >> 16) & 0xFF) % 80 + 20;
+        long hash = tileId * 2654435761L;
+        int r = (int) ((hash & 0xFF) % 80 + 20);
+        int g = (int) (((hash >> 8) & 0xFF) % 80 + 20);
+        int b = (int) (((hash >> 16) & 0xFF) % 80 + 20);
         Color c = Color.rgb(r, g, b);
         palette.put(tileId, c);
         return c;

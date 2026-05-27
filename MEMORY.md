@@ -1,13 +1,12 @@
 # MEMORY.md — Punto de control del proyecto
 
-## Sesión actual: Merge tile-engine ← develop + Tile Engine Review (Mayo 26 2026)
+## Sesión actual: Fixes de gameplay y UI (Mayo 26 2026)
 
 ## Estado
-- **Rama**: `tile-engine` (merged con `develop`)
-- **Build**: `mvn clean install -DskipTests` → BUILD SUCCESS (pendiente verificar)
+- **Rama**: `tile-engine`
+- **Build**: `mvn clean install -DskipTests` → BUILD SUCCESS
 - **Tests servidor**: pendiente ejecución
 - **Tests UI cliente**: pendiente ejecución
-- **Servidor** y **Cliente** compilan correctamente.
 
 ## Cambios aplicados
 
@@ -28,51 +27,90 @@
 - `GameClientState` + `cachedTileMap` (getter/setter), `GameClient` lo recibe y cachea
 - `Renderer` usa `cachedTileMap` en vez de `state.getTileMap()`
 - Limpieza en `GAME_END`, `LOGOUT`, y al finalizar partida
-- Ahorro: ~100 KB por tick por cliente (antes se enviaba en cada GAME_STATE a 30 Hz)
 
 #### FASE 2: Arreglar MapListMessage
 - `MapListMessage.java`: `super(MessageType.ROOM_LIST)` → `super(MessageType.MAP_LIST)`
-- `MessageType.MAP_LIST` + case en `JsonUtil.MessageAdapter`
 
 #### FASE 3: TileRenderer — quitar hardcode, TileColors dinámico
-- `TileRenderer.isWall()` eliminado → usa `TileSet.isSolid(tileId)` con tilesets
-- `TileColors` dinámico: `setPalette()` para override, colores procedurales para IDs > 10
+- `TileRenderer.isWall()` eliminado → usa `TileSet.isSolid(tileId)`
+- `TileColors` dinámico: colores procedurales para IDs > 10
 
 #### FASE 4: .tmj para map_02, map_03, map_04
-- Script `tools/convert_map_to_tmj.py`: convierte JSON legacy → Tiled TMJ
-- `map_02.tmj` (94×94, 3008×3008 px), `map_03.tmj` (110×110, 3520×3520 px), `map_04.tmj` (125×125, 4000×4000 px)
-- `MapManager.loadDefaults()` intenta TMJ primero para los 4 mapas (loop, no hardcode)
+- Script `tools/convert_map_to_tmj.py` y generados los 3 .tmj
 
 #### FASE 5: Documentación de inmutabilidad
-- `TileMap.java` doc: inmutable post-carga, compartido entre GameMap y MapDataMessage
+- `TileMap.java` doc: inmutable post-carga
 
 #### FASE 6: Texturizado con sprite sheet
-- Script `tools/generate_tileset.py`: genera `warehouse.png` (160×64, 10 tiles de 32×32) con Pillow
-- `map_01.tmj`: añadidos `image`, `imagewidth`, `imageheight` al tileset
-- `TileRenderer`: carga sprite sheets via `getClassLoader().getResourceAsStream()`, usa `drawImage()` con source rect calculado (GID → fila/columna en sheet)
-- Fallback a `TileColors.fillRect()` si no hay imagen cargada
-- Archivos huérfanos eliminados: `client/.../maps/map_1..4.png` (512×512 sin usar)
+- Script `tools/generate_tileset.py` → `warehouse.png` (160×64, 10 tiles de 32×32)
+- `TileRenderer` usa `drawImage()` con fallback a `TileColors`
 
 ### Merge develop → tile-engine (Mayo 26 2026)
 - Conflictos resueltos en: AGENTS.md, GameClient.java, GameInstance.java
-- Cambios de develop incluidos: MCP SOLID refactoring, host transfer, settings UI, etc.
+- Cambios de develop incluidos: MCP SOLID refactoring, host transfer, settings UI
 
-## Nuevos archivos
+### Fixes de gameplay y UI (Mayo 26 2026, sesión actual)
+
+#### Tick rate reducido: 30 → 20 Hz
+- `ServerConfig.TICK_RATE = 20` (default), derivados `TICK_DURATION_MS = 50ms`
+- `ServerConfig.java` ahora lee system properties (`-DTICK_RATE=20`) con fallback a defaults
+- `.env.example` documenta todas las system properties + defaults sincronizados
+- Comentario de `GameLoop.java` corregido
+
+#### Movimiento: fix de velocidad (teletransporte)
+- `MovementSystem.update()` procesaba **todos** los `MOVE_INPUT` acumulados por tick
+- Cada input aplicaba `speed * deltaTime` → 3 inputs/tick = 3× velocidad (antes 2× con 30Hz)
+- Fix: procesa solo el **último** `MOVE_INPUT` por jugador por tick (`Set<String> processed`)
+
+#### Throttle de MOVE_INPUT en cliente
+- `GameClient.java`: solo envía `MOVE_INPUT` cada 50ms (`System.currentTimeMillis()`)
+- Reduce tráfico ~60% (de 60 msg/s a 20 msg/s)
+
+#### Lobby: nombres de usuario en vez de IDs
+- `RoomUpdatedMessage` + `playerUsernames` (Map<String, String>)
+- Server puebla usernames desde `ClientConnection.getUsername()`
+- Lobby muestra nombres reales con 👑 para host
+
+#### F3 debug overlay: posición corregida
+- Vuelto a top-left (5, 5), rectángulo 240×210px con altura suficiente
+- `TextAlignment.LEFT` explícito para evitar desborde de texto
+
+#### Fullscreen: persistencia entre screens + F11 global
+- `ScreenManager.switchScene()` preserva estado fullscreen al cambiar de screen
+- F11 funciona en Login, Lobby, GameOver gracias a `addFullScreenHandler()`
+- ESC de JavaFX bloqueado (`KeyCombination.NO_MATCH`) para evitar conflicto con ajustes
+- Todas las pantallas usan Scene dinámico (no tamaño fijo 800×466)
+
+#### Fullscreen: sin salto de ventana al cambiar de screen
+- `switchScene()` ya no fuerza `setWidth()`/`setHeight()` en cada transición
+- Tamaño inicial seteado una sola vez en `init()`
+
+#### GameScreen: fix de overlays y controles
+- Pause overlay: `setMaxHeight(360)` para evitar que se estire a todo el alto
+- Settings scrollbar: estilizado con CSS (`style.css` — track transparente, thumb #30363d)
+- ESC: settings overlay tiene prioridad en el handler
+- Ayuda actualizada con Q, E, F, F11 documentados
+
+#### LoginScreen: form no se estira
+- `setMaxSize(320, USE_PREF_SIZE)` para que el VBox use su alto natural
+
+### Nuevos archivos (esta sesión)
 ```
-shared/.../message/MapDataMessage.java        — mensaje para envío único de TileMap
-server/.../maps/map_02.tmj, map_03.tmj, map_04.tmj  — mapas convertidos a Tiled
-client/.../maps/warehouse.png                 — sprite sheet (160×64, 10 tiles)
-tools/generate_tileset.py                     — generador procedural de sprite sheet
-tools/convert_map_to_tmj.py                   — conversor JSON legacy → Tiled TMJ
+client/src/main/resources/style.css               — estilos para scrollbar de settings
+server/src/main/resources/maps/map_02.tmj, map_03.tmj, map_04.tmj  — mapas TMJ
+client/src/main/resources/maps/warehouse.png       — sprite sheet
+shared/src/main/java/com/aa/shared/message/MapDataMessage.java
+tools/generate_tileset.py, convert_map_to_tmj.py
 ```
 
-## Archivos modificados (tile engine review)
+### Archivos modificados (esta sesión)
 ```
-shared: MessageType.java, MapListMessage.java, JsonUtil.java, GameState.java, TileMap.java
-server: GameInstance.java, MapManager.java, map_01.tmj
-client: GameClient.java, GameClientState.java, Renderer.java, TileRenderer.java, TileColors.java
+ServerConfig.java, MovementSystem.java, GameLoop.java, MessageHandler.java,
+GameServer.java, RoomUpdatedMessage.java, GameClient.java, TileColors.java,
+Renderer.java, GameScreen.java, LobbyScreen.java, LoginScreen.java,
+GameOverScreen.java, ScreenManager.java, SettingsOverlay.java, .env.example
 ```
 
 ## Pendiente
-- Ejecutar tests para verificar build y conteo actual
+- Ejecutar tests para verificar conteo actual
 - Posible soporte para más tilesets (ahora solo warehouse)

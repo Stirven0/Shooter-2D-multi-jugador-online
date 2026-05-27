@@ -134,7 +134,7 @@ public class SettingsOverlay {
         content.getChildren().addAll(title, columns, bottom, closeBtn);
 
         ScrollPane scroll = new ScrollPane(content);
-        scroll.setStyle(SCROLL_STYLE);
+        scroll.getStylesheets().add(getClass().getClassLoader().getResource("style.css").toExternalForm());
         scroll.setFitToWidth(true);
         scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);

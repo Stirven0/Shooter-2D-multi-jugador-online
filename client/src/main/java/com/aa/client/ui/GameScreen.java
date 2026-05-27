@@ -67,16 +67,19 @@ public class GameScreen {
         root.setTop(TitleBar.create("Partida en curso", stage, true));
         root.setCenter(centerStack);
 
-        Scene scene = new Scene(root, ClientConfig.WIDTH, ClientConfig.HEIGHT + TitleBar.HEIGHT);
+        Scene scene = new Scene(root);
 
         inputHandler.attach(scene);
 
         scene.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
             if (e.getCode() == KeyCode.ESCAPE) {
+                if (settingsOverlay.getRoot().isVisible()) {
+                    toggleSettings();
+                    e.consume();
+                    return;
+                }
                 if (helpOverlay.isVisible()) {
                     toggleHelp();
-                } else if (settingsOverlay.getRoot().isVisible()) {
-                    toggleSettings();
                 } else {
                     togglePause();
                 }
@@ -84,12 +87,17 @@ public class GameScreen {
             } else if (e.getCode() == KeyCode.F3) {
                 gameClient.setShowDebug(!gameClient.isShowDebug());
                 e.consume();
+            } else if (e.getCode() == KeyCode.F11) {
+                gameClient.getScreenManager().toggleFullScreen();
+                e.consume();
             }
         });
 
         stage.fullScreenProperty().addListener((obs, was, is) ->
             Platform.runLater(() -> resizeCanvas(stage))
         );
+        stage.widthProperty().addListener((obs, old, w) -> resizeCanvas(stage));
+        stage.heightProperty().addListener((obs, old, h) -> resizeCanvas(stage));
         resizeCanvas(stage);
 
         gameLoop = new AnimationTimer() {
@@ -126,6 +134,7 @@ public class GameScreen {
         overlay.setStyle(OVERLAY);
         overlay.setVisible(false);
         overlay.setMaxWidth(280);
+        overlay.setMaxHeight(360);
 
         Label title = new Label("PAUSA");
         title.setStyle(OVERLAY_TITLE);
@@ -167,7 +176,12 @@ public class GameScreen {
             "WASD / Flechas ................. Moverse",
             "Mouse ......................... Apuntar",
             "Click izquierdo ............... Disparar",
+            "Q ............................. Cambiar arma",
+            "E ............................. Skill 1 (ej. Dash, EMP)",
+            "F ............................. Skill 2 (ej. Shield, Heal)",
             "SHIFT ......................... Correr",
+            "ESC ........................... Pausa / Ajustes",
+            "F11 ........................... Pantalla completa",
             "F3 ............................ Debug",
             "",
             "Objetivo: Sé el último jugador en pie.",

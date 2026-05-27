@@ -6,7 +6,11 @@ import com.aa.shared.message.GameEndMessage;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Scene;
 import javafx.scene.control.Label;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.stage.StageStyle;
@@ -28,9 +32,21 @@ public class ScreenManager {
         this.stage = stage;
         stage.initStyle(StageStyle.UNDECORATED);
         stage.setTitle(com.aa.client.util.ClientConfig.TITLE);
+        stage.setWidth(com.aa.client.util.ClientConfig.WIDTH);
+        stage.setHeight(com.aa.client.util.ClientConfig.HEIGHT + TitleBar.HEIGHT);
+        stage.setFullScreenExitKeyCombination(KeyCombination.NO_MATCH);
+        stage.setFullScreenExitHint("");
 
         showLogin();
         stage.show();
+    }
+
+    private void switchScene(Scene scene) {
+        boolean wasFull = stage.isFullScreen();
+        stage.setScene(scene);
+        if (wasFull) {
+            stage.setFullScreen(true);
+        }
     }
 
     public void showLobby() {
@@ -39,7 +55,7 @@ public class ScreenManager {
         gameClient.setCurrentRoomId(null);
         gameClient.setCurrentScreen("lobby");
         this.lobbyScreen = new LobbyScreen(gameClient);
-        stage.setScene(lobbyScreen.createScene(stage));
+        switchScene(lobbyScreen.createScene(stage));
     }
 
     public LobbyScreen getLobbyScreen() {
@@ -49,7 +65,7 @@ public class ScreenManager {
     public void showLogin() {
         gameClient.setCurrentScreen("login");
         this.loginScreen = new LoginScreen(gameClient);
-        stage.setScene(loginScreen.createScene(stage));
+        switchScene(loginScreen.createScene(stage));
     }
 
     public void showLoginError(String msg) {
@@ -58,12 +74,21 @@ public class ScreenManager {
 
     public void showGame() {
         gameClient.setCurrentScreen("game");
-        stage.setScene(new GameScreen(gameClient).createScene(stage));
+        switchScene(new GameScreen(gameClient).createScene(stage));
     }
 
     public void showGameOver(GameEndMessage endMsg) {
         gameClient.setCurrentScreen("gameover");
-        stage.setScene(new GameOverScreen(gameClient, endMsg).createScene(stage));
+        switchScene(new GameOverScreen(gameClient, endMsg).createScene(stage));
+    }
+
+    public static void addFullScreenHandler(Scene scene, ScreenManager sm) {
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+            if (e.getCode() == KeyCode.F11) {
+                sm.toggleFullScreen();
+                e.consume();
+            }
+        });
     }
 
     public GameClient getGameClient() {
@@ -167,7 +192,12 @@ public class ScreenManager {
     public Stage getStage() { return stage; }
 
     public void toggleFullScreen() {
-        stage.setFullScreen(!stage.isFullScreen());
+        boolean goingFull = !stage.isFullScreen();
+        stage.setFullScreen(goingFull);
+        if (goingFull) {
+        stage.setFullScreenExitKeyCombination(KeyCombination.NO_MATCH);
+            stage.setFullScreenExitHint("");
+        }
     }
 
     public boolean isFullScreen() {
