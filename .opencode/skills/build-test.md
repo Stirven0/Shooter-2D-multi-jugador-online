@@ -54,6 +54,16 @@ java -jar mcp-bridge/target/mcp-bridge-1.0-SNAPSHOT.jar --username ai_player
 mvn test -pl server 2>&1 | grep "TMJ map"
 ```
 
+### Generate tile sprite sheet
+```bash
+python3 tools/generate_tileset.py
+```
+
+### Convert legacy JSON maps to TMJ
+```bash
+python3 tools/convert_map_to_tmj.py
+```
+
 ### Clean everything
 ```bash
 mvn clean
