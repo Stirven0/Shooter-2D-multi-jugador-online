@@ -14,7 +14,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class GameOverScreen {
+public class GameOverScreen implements IScreen {
 
     private final GameClient gameClient;
     private final GameEndMessage endMsg;

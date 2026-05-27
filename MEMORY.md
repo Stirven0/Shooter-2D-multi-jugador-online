@@ -1,6 +1,6 @@
 # MEMORY.md — Punto de control del proyecto
 
-## Sesión actual: Fixes de gameplay y UI (Mayo 26 2026)
+## Sesión actual: Refactor cliente + Fixes gameplay (Mayo 26 2026)
 
 ## Estado
 - **Rama**: `tile-engine`
@@ -109,6 +109,42 @@ ServerConfig.java, MovementSystem.java, GameLoop.java, MessageHandler.java,
 GameServer.java, RoomUpdatedMessage.java, GameClient.java, TileColors.java,
 Renderer.java, GameScreen.java, LobbyScreen.java, LoginScreen.java,
 GameOverScreen.java, ScreenManager.java, SettingsOverlay.java, .env.example
+```
+
+### Refactor del módulo client — SOLID + patrones (Mayo 26 2026)
+
+#### Dead code eliminado
+- `AssetManager.java` (22 líneas, nunca referenciado)
+
+#### Interfaz IScreen
+- `IScreen.java` (nuevo): contrato `createScene(Stage)` + `getErrorMessage()` + `setError(msg)`
+- `LoginScreen`, `LobbyScreen`, `GameScreen`, `GameOverScreen` implementan `IScreen`
+
+#### HelpOverlay compartido
+- `HelpOverlay.java` (nuevo): componente reutilizable con `create(includeGameControls)`
+- Eliminados 35 líneas duplicadas en `LoginScreen.createHelpOverlay()` y 30 en `GameScreen.buildHelpOverlay()`
+
+#### HudRenderer extraído
+- `HudRenderer.java` (nuevo, ~160 líneas): renderiza HP, shield, weapon info, skills, scoreboard, debug overlay
+- `Renderer.java` reducido de 450 a ~250 líneas (delegación a HudRenderer)
+
+#### Principios SOLID aplicados
+- **S**: HudRenderer solo dibuja HUD; HelpOverlay solo construye overlay
+- **O**: nuevas skills se añaden en HudRenderer sin tocar Renderer
+- **L**: IScreen es interfaz común para todas las pantallas
+- **I**: IScreen es mínima (3 métodos, 2 con default)
+- **D**: ScreenManager depende de IScreen, no de clases concretas
+
+#### Archivos nuevos (refactor)
+```
+client/.../render/HudRenderer.java     — HUD delegado desde Renderer
+client/.../ui/HelpOverlay.java         — overlay de ayuda compartido
+client/.../ui/IScreen.java             — interfaz común de pantallas
+```
+
+#### Archivos eliminados (refactor)
+```
+client/.../asset/AssetManager.java     — dead code
 ```
 
 ## Pendiente

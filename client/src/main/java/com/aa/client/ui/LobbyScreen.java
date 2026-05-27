@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 import javafx.stage.Stage;
 
-public class LobbyScreen {
+public class LobbyScreen implements IScreen {
 
     private static final Map<String, String> MAP_NAMES = Map.of(
         "map_01", "Warehouse",
