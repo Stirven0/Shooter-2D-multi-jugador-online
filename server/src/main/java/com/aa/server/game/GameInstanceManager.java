@@ -28,8 +28,12 @@ public class GameInstanceManager {
     }
 
     public void createAndStart(Room room) {
+        System.out.println("[GAME] createAndStart called for room " + room.getRoomId() + " map=" + room.getMapId());
         GameMap map = mapManager.getMap(room.getMapId());
-        if (map == null) map = mapManager.getDefaultMap();
+        if (map == null) {
+            System.out.println("[GAME] Map not found for " + room.getMapId() + ", using default");
+            map = mapManager.getDefaultMap();
+        }
 
         GameInstance instance = new GameInstance(room.getRoomId(), room, map, connectionManager);
         instance.setOnGameEndCallback(() -> {

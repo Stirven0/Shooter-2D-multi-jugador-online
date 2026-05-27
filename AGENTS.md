@@ -6,7 +6,7 @@
 
 ## Quick start
 ```bash
-mvn clean install -DskipTests              # build & install todo (4 módulos)
+mvn clean install -DskipTests              # build & install (4 módulos: shared, server, client, mcp-bridge)
 java -jar server/target/server-1.0-SNAPSHOT.jar   # servidor :8080
 mvn javafx:run -pl client                  # lanzar cliente
 mvn javafx:run -pl client -Djavafx.args="--mcp"  # cliente en modo MCP
@@ -17,12 +17,19 @@ python tools/load_test.py 5                 # stress test (5 bots)
 
 ## Test commands
 ```bash
-mvn test -pl server                         # 57 tests server
+mvn test -pl server                         # server tests
 mvn test -pl server -Dtest="!*IntegrationTest"  # solo unitarias
-Xvfb :99 -ac -screen 0 1280x720x24 &       # iniciar display virtual (solo Linux)
-DISPLAY=:99 mvn test -pl client             # 20 tests UI (Linux con Xvfb; en Windows: `mvn test -pl client` directo)
+Xvfb :99 -ac -screen 0 1280x720x24 &       # display virtual para UI tests (solo Linux)
+DISPLAY=:99 mvn test -pl client             # UI tests (en Windows sin Xvfb)
 mvn test -pl server,client                  # ambos módulos
 ```
+Nota: Los count de tests cambian — ejecutar los comandos para ver cifras actuales.
+`prism.order=sw` en argLine del surefire-client permite headless sin GPU.
+
+## Supplementary docs
+- `MEMORY.md` — estado del proyecto, resumen de fases, conteo de tests
+- `ENV-REVIEW.md` — informe de viabilidad del entorno (build, test, load test)
+- `.opencode/skills/` — 5 skills de desarrollo para opencode (ai-agent, build-test, game-client-mcp, gameplay-skills, mcp-bridge)
 
 ## Architecture rules
 - **Server-authoritative**: Client NEVER sends positions. Only normalized inputs (-1..1).
@@ -77,7 +84,7 @@ Ejemplo:
 mvn javafx:run -pl client -Djavafx.args="--mcp --host 10.0.0.5 --portmcp 9000"
 ```
 
-## Gotchas
+## Gotchas (important quirks)
 - **Gson recursion split**: Two Gson instances in `JsonUtil` — `gsonPlain` (no `MessageAdapter`, para tipos concretos como `MoveMessage`) and `gson` (con `MessageAdapter`, para `parseMessage()` y `toJson()`). Usar el correcto.
 - **CREATE_ROOM maps to `LoginMessage.class`** en `MessageAdapter.getTargetClass()` — hack intencional. CREATE_ROOM se parsea manualmente desde `JsonObject` en `MessageHandler`. No "arreglar".
 - **JUnit 3.8.1 en root `dependencyManagement`** es código muerto. Testing real usa JUnit 5 (Jupiter) desde server/pom.xml y client/pom.xml.

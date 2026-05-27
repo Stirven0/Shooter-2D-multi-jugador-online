@@ -112,15 +112,9 @@ public class GameScreen {
         };
         gameLoop.start();
 
-        ClientMcpServer mcpSrv = gameClient.getScreenManager().getMcpServer();
-        if (mcpSrv != null) {
-            mcpSrv.setCanvas(canvas);
-        } else {
-            ClientMcpServer mcpNew = new ClientMcpServer(
-                gameClient, gameClient.getInputHandler(),
-                gameClient.getRenderer(), canvas, stage);
-            gameClient.getScreenManager().setMcpServer(mcpNew);
-            mcpNew.start();
+        if (gameClient.getScreenManager().isMcpEnabled()) {
+            ClientMcpServer mcpSrv = gameClient.getScreenManager().getMcpServer();
+            if (mcpSrv != null) mcpSrv.setCanvas(canvas);
         }
 
         return scene;

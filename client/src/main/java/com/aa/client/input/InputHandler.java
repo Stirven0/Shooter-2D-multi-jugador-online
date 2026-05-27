@@ -88,6 +88,9 @@ public class InputHandler {
     public void triggerSkillSlot1() { this.useSkill1Pressed = true; }
     public void triggerShoot() { this.mousePressed = true; }
 
+    public void addKey(KeyCode code) { keys.add(code); }
+    public void removeKey(KeyCode code) { keys.remove(code); }
+
     public void setMousePosition(double x, double y) {
         this.mouseScreenX = x;
         this.mouseScreenY = y;

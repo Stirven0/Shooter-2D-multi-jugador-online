@@ -105,6 +105,8 @@ public class GameClient implements ClientMessageListener {
         JsonObject obj = new JsonObject();
         obj.addProperty("type", "LEAVE_ROOM");
         network.sendJson(obj);
+        state.setInGame(false);
+        state.setCurrentState(null);
         currentRoomId = null;
     }
 

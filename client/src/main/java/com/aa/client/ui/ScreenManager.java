@@ -34,6 +34,8 @@ public class ScreenManager {
     }
 
     public void showLobby() {
+        gameClient.getClientState().setInGame(false);
+        gameClient.getClientState().setCurrentState(null);
         gameClient.setCurrentRoomId(null);
         gameClient.setCurrentScreen("lobby");
         this.lobbyScreen = new LobbyScreen(gameClient);

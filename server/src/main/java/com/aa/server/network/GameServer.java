@@ -31,6 +31,7 @@ public class GameServer extends WebSocketServer {
 
     public GameServer(InetSocketAddress address) {
         super(address);
+        setReuseAddr(true);
         this.connectionManager = new ConnectionManager();
 
         AuthService authService = new AuthService();

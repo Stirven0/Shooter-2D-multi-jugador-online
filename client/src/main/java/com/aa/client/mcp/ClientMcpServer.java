@@ -413,19 +413,22 @@ public class ClientMcpServer {
                 if (!"login".equals(gameClient.getCurrentScreen())) {
                     return Mono.just(errorResult("Must be on login screen. Current screen: " + gameClient.getCurrentScreen() + ". Use ui_logout first."));
                 }
-                if (gameClient.isConnected()) {
-                    return Mono.just(errorResult("Already connected. Use ui_logout first."));
-                }
 
                 new Thread(() -> {
                     gameClient.setLastError(null);
-                    boolean ok = gameClient.connect();
-                    if (ok) {
+                    if (gameClient.isConnected()) {
                         Platform.runLater(() -> {
                             gameClient.sendLogin(username, password, register);
                         });
                     } else {
-                        gameClient.setLastError("Failed to connect to server");
+                        boolean ok = gameClient.connect();
+                        if (ok) {
+                            Platform.runLater(() -> {
+                                gameClient.sendLogin(username, password, register);
+                            });
+                        } else {
+                            gameClient.setLastError("Failed to connect to server");
+                        }
                     }
                 }).start();
 
@@ -621,16 +624,56 @@ public class ClientMcpServer {
                 String action = args.containsKey("action") ? ((String) args.get("action")).toLowerCase() : "click";
 
                 switch (key) {
-                    case "W" -> simulateKey(KeyCode.W, action);
-                    case "A" -> simulateKey(KeyCode.A, action);
-                    case "S" -> simulateKey(KeyCode.S, action);
-                    case "D" -> simulateKey(KeyCode.D, action);
-                    case "ARROW_UP" -> simulateKey(KeyCode.UP, action);
-                    case "ARROW_DOWN" -> simulateKey(KeyCode.DOWN, action);
-                    case "ARROW_LEFT" -> simulateKey(KeyCode.LEFT, action);
-                    case "ARROW_RIGHT" -> simulateKey(KeyCode.RIGHT, action);
-                    case "SPACE" -> simulateKey(KeyCode.SPACE, action);
-                    case "SHIFT" -> simulateKey(KeyCode.SHIFT, action);
+                    case "W" -> {
+                        simulateKey(KeyCode.W, action);
+                        if (canvas != null) Platform.runLater(() ->
+                            gameClient.update(inputHandler, canvas.getGraphicsContext2D()));
+                    }
+                    case "A" -> {
+                        simulateKey(KeyCode.A, action);
+                        if (canvas != null) Platform.runLater(() ->
+                            gameClient.update(inputHandler, canvas.getGraphicsContext2D()));
+                    }
+                    case "S" -> {
+                        simulateKey(KeyCode.S, action);
+                        if (canvas != null) Platform.runLater(() ->
+                            gameClient.update(inputHandler, canvas.getGraphicsContext2D()));
+                    }
+                    case "D" -> {
+                        simulateKey(KeyCode.D, action);
+                        if (canvas != null) Platform.runLater(() ->
+                            gameClient.update(inputHandler, canvas.getGraphicsContext2D()));
+                    }
+                    case "ARROW_UP" -> {
+                        simulateKey(KeyCode.UP, action);
+                        if (canvas != null) Platform.runLater(() ->
+                            gameClient.update(inputHandler, canvas.getGraphicsContext2D()));
+                    }
+                    case "ARROW_DOWN" -> {
+                        simulateKey(KeyCode.DOWN, action);
+                        if (canvas != null) Platform.runLater(() ->
+                            gameClient.update(inputHandler, canvas.getGraphicsContext2D()));
+                    }
+                    case "ARROW_LEFT" -> {
+                        simulateKey(KeyCode.LEFT, action);
+                        if (canvas != null) Platform.runLater(() ->
+                            gameClient.update(inputHandler, canvas.getGraphicsContext2D()));
+                    }
+                    case "ARROW_RIGHT" -> {
+                        simulateKey(KeyCode.RIGHT, action);
+                        if (canvas != null) Platform.runLater(() ->
+                            gameClient.update(inputHandler, canvas.getGraphicsContext2D()));
+                    }
+                    case "SPACE" -> {
+                        simulateKey(KeyCode.SPACE, action);
+                        if (canvas != null) Platform.runLater(() ->
+                            gameClient.update(inputHandler, canvas.getGraphicsContext2D()));
+                    }
+                    case "SHIFT" -> {
+                        simulateKey(KeyCode.SHIFT, action);
+                        if (canvas != null) Platform.runLater(() ->
+                            gameClient.update(inputHandler, canvas.getGraphicsContext2D()));
+                    }
                     case "Q" -> {
                         inputHandler.triggerSwapWeapon();
                         if (canvas != null) Platform.runLater(() ->
@@ -877,24 +920,13 @@ public class ClientMcpServer {
     }
 
     private void simulateKey(KeyCode code, String action) {
-        javafx.event.EventType<javafx.scene.input.KeyEvent> type;
-
         switch (action) {
-            case "press" -> type = javafx.scene.input.KeyEvent.KEY_PRESSED;
-            case "release" -> type = javafx.scene.input.KeyEvent.KEY_RELEASED;
+            case "press" -> inputHandler.addKey(code);
+            case "release" -> inputHandler.removeKey(code);
             default -> {
-                simulateKey(code, "press");
-                simulateKey(code, "release");
-                return;
+                inputHandler.addKey(code);
+                inputHandler.removeKey(code);
             }
-        }
-
-        if (canvas == null) return;
-        javafx.scene.input.KeyEvent event = new javafx.scene.input.KeyEvent(
-            type, code.getChar(), code.getName(), code, false, false, false, false);
-        if (canvas.getScene() != null) {
-            Platform.runLater(() ->
-                canvas.getScene().getRoot().fireEvent(event));
         }
     }
 
