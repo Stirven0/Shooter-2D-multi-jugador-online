@@ -53,6 +53,12 @@ Nota: Los count de tests cambian — ejecutar los comandos para ver cifras actua
   - *UI Sync* (1): `wait_for_screen`
   - *Game Observability* (7): `screenshot`, `get_hud_info`, `get_player_position`, `get_game_state`, `get_other_players`, `get_bullets`, `get_map_pickups`
   - *Game Control* (4): `send_key`, `aim_at`, `mouse_move`, `aim_direction`
+- **Client MCP architecture (refactored)**: `ClientMcpServer` delega en 11 clases:
+  - `McpTransport` interface + `McpTcpTransport` (TCP) / `McpStdioTransport` (stdio) implementations
+  - `McpToolRegistry` — registro centralizado de tools (nombre, descripcion, handler)
+  - `McpJsonRpcHandler` — protocolo JSON-RPC 2.0 para transporte TCP
+  - `McpGameContext` — acceso seguro a GameState, jugadores, pickups, info de pantalla
+  - 6 tool providers en `mcp/tools/`: `StatusTools`, `UiTools`, `UiSyncTools`, `GameTools`, `GameObservabilityTools`, `GameControlTools`
 - **Screen validation**: Todos los tools UI validan que el cliente esté en la pantalla correcta antes de ejecutarse (ej. `ui_create_room` solo funciona desde lobby).
 - **TCP transport**: `--mcp` solo ya activa TCP en `localhost:4567`. Usar `--hostmcp` / `--portmcp` para override. JSON-RPC 2.0 con delimitador newline.
 - **MCP SDK**: `io.modelcontextprotocol.sdk:mcp-bom:0.17.2` (BOM import en root, usar `mcp-core`/`mcp-json`/`mcp-json-jackson2` directamente). Requiere `jackson-databind` para `JacksonMcpJsonMapper`.
@@ -106,7 +112,12 @@ mvn javafx:run -pl client -Djavafx.args="--mcp --host 10.0.0.5 --portmcp 9000"
 ```
 shared/     → message/, model/, state/, util/
 server/     → network/, handler/, auth/, room/, game/ (engine/, system/, map/), db/, util/
-client/     → network/, game/, input/, render/, ui/, mcp/, asset/, util/
+client/     → network/, game/, input/, render/, ui/, asset/, util/
+              mcp/ → ClientMcpServer, McpTransport (interface), McpTcpTransport,
+                     McpStdioTransport, McpToolRegistry, McpJsonRpcHandler,
+                     McpGameContext
+              mcp/tools/ → StatusTools, UiTools, UiSyncTools, GameTools,
+                           GameObservabilityTools, GameControlTools
 mcp-bridge/ → MCP bridge standalone (McpBridge.java + BridgeGameClient.java)
 .opencode/skills/ → skills de desarrollo para opencode (5 skills)
 tools/      → Python test scripts (test_client.py, load_test.py, multi_client_test.py)

@@ -10,7 +10,14 @@ Working with the JavaFX client's `--mcp` mode, which exposes an embedded MCP ser
 - Modifying how the AI agent interacts with the client
 
 ## Architecture
-The client MCP server runs alongside the JavaFX game loop. It exposes 22 tools that let an AI see the game viewport, press keys, and interact with UI screens as if it were a human player. All UI tools validate the current screen before executing.
+The client MCP server (`ClientMcpServer`) orchestrates 11 classes:
+- **Transport**: `McpTransport` interface → `McpTcpTransport` (TCP localhost:4567, JSON-RPC 2.0 via `McpJsonRpcHandler`) o `McpStdioTransport` (MCP SDK nativo)
+- **Registry**: `McpToolRegistry` centraliza tool definitions y handler mappings
+- **Game context**: `McpGameContext` provee acceso thread-safe a `GameState`, jugadores, balas, pickups, estado de pantalla
+- **Tool providers** (6 clases en `mcp/tools/`): `StatusTools` (2), `UiTools` (8), `UiSyncTools` (1), `GameTools` (5), `GameControlTools` (3), `GameObservabilityTools` (3)
+- **JSON-RPC**: `McpJsonRpcHandler` maneja protocolo JSON-RPC 2.0 para TCP transport
+
+Expone 22 tools que permiten a una IA ver el viewport, presionar teclas e interactuar con pantallas UI. Todos los tools UI validan la pantalla actual antes de ejecutarse.
 
 ## Steps
 
@@ -29,6 +36,9 @@ mvn javafx:run -pl client -Djavafx.args="--mcp"
 | Game Control | `send_key`, `aim_at`, `mouse_move`, `aim_direction` |
 
 ### 3. Adding a new client MCP tool
-1. Add tool registration in `ClientMcpServer.java` using `addTool()` helper
-2. Screen validation: add screen check at the start of UI tool handlers
-3. Rebuild and test with `--mcp`
+1. Identificar la categoria: `StatusTools` / `UiTools` / `UiSyncTools` / `GameTools` / `GameControlTools` / `GameObservabilityTools`
+2. Agregar tool en la clase provider correspondiente (`mcp/tools/XxxTools.java`) usando `registry.registerTool(name, desc, props, handler)`
+3. Si la tool necesita GameState, usar los metodos de `McpGameContext` (`getLocalPlayer()`, `getOtherPlayers()`, etc.)
+4. UI tools: validar pantalla actual al inicio del handler (`if (!"lobby".equals(ctx.getCurrentScreen())) → error`)
+5. El provider se auto-wirea en el constructor de `ClientMcpServer` — no se necesita boilerplate de registro adicional
+6. Rebuild y probar con `--mcp`
