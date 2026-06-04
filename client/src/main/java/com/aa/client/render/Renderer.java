@@ -21,6 +21,11 @@ public class Renderer {
     private final TileRenderer tileRenderer;
     private final HudRenderer hudRenderer;
     private TileMap cachedTileMap;
+    private long muzzleFlashUntil;
+    private double muzzleFlashSX, muzzleFlashSY, muzzleFlashAngle;
+    private long hitEffectUntil;
+    private double lastDamageFromX, lastDamageFromY;
+    private double lastLocalHealth = 100;
 
     public Renderer(Camera camera) {
         this.camera = camera;
@@ -33,9 +38,26 @@ public class Renderer {
     public void setShowDebug(boolean v) { hudRenderer.setShowDebug(v); }
     public void setFps(double v) { hudRenderer.setFps(v); }
 
+    public void onShoot(double worldX, double worldY, double angle) {
+        muzzleFlashSX = camera.worldToScreenX(worldX);
+        muzzleFlashSY = camera.worldToScreenY(worldY);
+        muzzleFlashAngle = angle;
+        muzzleFlashUntil = System.currentTimeMillis() + 100;
+    }
+
+    public void onDamageTaken(double damageFromX, double damageFromY) {
+        lastDamageFromX = damageFromX;
+        lastDamageFromY = damageFromY;
+        hitEffectUntil = System.currentTimeMillis() + 200;
+    }
+
+    public void setLastLocalHealth(double hp) { this.lastLocalHealth = hp; }
+    public double getLastLocalHealth() { return lastLocalHealth; }
+
     public void render(GraphicsContext gc, GameState state, String localPlayerId, double mouseScreenX, double mouseScreenY) {
         double cw = gc.getCanvas().getWidth();
         double ch = gc.getCanvas().getHeight();
+        long now = System.currentTimeMillis();
 
         gc.setFill(Color.rgb(13, 17, 23));
         gc.fillRect(0, 0, cw, ch);
@@ -60,6 +82,7 @@ public class Renderer {
         for (Player p : state.getAllPlayers()) {
             boolean isLocal = p.getId().equals(localPlayerId);
             drawPlayer(gc, p, isLocal);
+            if (isLocal && now < muzzleFlashUntil) drawMuzzleFlash(gc, p);
             if (hudRenderer.isShowDebug()) drawPlayerHitbox(gc, p);
         }
 
@@ -68,9 +91,55 @@ public class Renderer {
             if (hudRenderer.isShowDebug()) drawBulletHitbox(gc, b);
         }
 
+        if (now < hitEffectUntil) drawDamageIndicator(gc, cw, ch);
+
         drawCrosshair(gc, mouseScreenX, mouseScreenY);
         hudRenderer.render(gc, state, localPlayerId);
         hudRenderer.drawDebugOverlay(gc, state, localPlayerId);
+    }
+
+    private void drawMuzzleFlash(GraphicsContext gc, Player p) {
+        Image flash = SpriteManager.getMuzzleFlash();
+        double sx = camera.worldToScreenX(p.getPosition().x() + p.getDirection().x() * 28);
+        double sy = camera.worldToScreenY(p.getPosition().y() + p.getDirection().y() * 28);
+        if (flash != null) {
+            gc.save();
+            gc.translate(sx, sy);
+            gc.rotate(Math.toDegrees(Math.atan2(p.getDirection().y(), p.getDirection().x())));
+            gc.drawImage(flash, -12, -12, 24, 24);
+            gc.restore();
+        } else {
+            double r = 12;
+            gc.setFill(Color.rgb(255, 200, 50, 0.6));
+            gc.fillOval(sx - r, sy - r, r * 2, r * 2);
+            gc.setFill(Color.rgb(255, 255, 200, 0.9));
+            gc.fillOval(sx - r/2, sy - r/2, r, r);
+        }
+    }
+
+    private void drawDamageIndicator(GraphicsContext gc, double cw, double ch) {
+        gc.setFill(Color.rgb(248, 81, 73, 0.15));
+        gc.fillRect(0, 0, cw, ch);
+        double playerScreenX = camera.worldToScreenX(lastDamageFromX);
+        double playerScreenY = camera.worldToScreenY(lastDamageFromY);
+        double edgePad = 30;
+        double indicatorSize = 20;
+        double cx = cw / 2;
+        double cy = ch / 2;
+        double dx = playerScreenX - cx;
+        double dy = playerScreenY - cy;
+        double dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 1) {
+            dx /= dist;
+            dy /= dist;
+            double ex = cx + dx * (cw / 2 - edgePad);
+            double ey = cy + dy * (ch / 2 - edgePad);
+            gc.setFill(Color.rgb(248, 81, 73, 0.7));
+            gc.fillPolygon(new double[]{ex, ex - dy * indicatorSize * 0.4 + dx * indicatorSize * 0.3,
+                ex + dy * indicatorSize * 0.4 + dx * indicatorSize * 0.3},
+                new double[]{ey, ey + dx * indicatorSize * 0.4 + dy * indicatorSize * 0.3,
+                ey - dx * indicatorSize * 0.4 + dy * indicatorSize * 0.3}, 3);
+        }
     }
 
     private void drawGrid(GraphicsContext gc) {

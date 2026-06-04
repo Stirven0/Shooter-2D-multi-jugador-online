@@ -169,6 +169,7 @@ public class GameClient implements ClientMessageListener {
                         if (local != null) {
                             double angle = input.getShootAngle(camera, local.getPosition());
                             network.sendMessage(new ShootMessage(angle));
+                            renderer.onShoot(local.getPosition().x(), local.getPosition().y(), angle);
                             input.clearShoot();
                         }
                     }
@@ -185,6 +186,28 @@ public class GameClient implements ClientMessageListener {
 
                 Player local = getLocalPlayer();
                 if (local != null) {
+                    double currentHp = local.getHealth();
+                    if (currentHp < renderer.getLastLocalHealth()) {
+                        double fromX = local.getPosition().x();
+                        double fromY = local.getPosition().y() - 100;
+                        double nearestDist = Double.MAX_VALUE;
+                        GameState gs = state.getCurrentState();
+                        if (gs != null) {
+                            for (Player other : gs.getAllPlayers()) {
+                                if (!other.getId().equals(local.getId()) && other.isAlive()) {
+                                    double dist = local.getPosition().distanceTo(other.getPosition());
+                                    if (dist < nearestDist) {
+                                        nearestDist = dist;
+                                        fromX = other.getPosition().x();
+                                        fromY = other.getPosition().y();
+                                    }
+                                }
+                            }
+                        }
+                        renderer.onDamageTaken(fromX, fromY);
+                    }
+                    renderer.setLastLocalHealth(currentHp);
+
                     GameState gs = state.getCurrentState();
                     if (gs != null) {
                         try {
