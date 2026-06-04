@@ -125,6 +125,7 @@ public class GameClient implements ClientMessageListener {
         renderer.setCachedTileMap(null);
         currentRoomId = null;
         currentUsername = null;
+        AudioManager.stopMusic();
         network.close();
         screenManager.showLogin();
     }
@@ -170,6 +171,7 @@ public class GameClient implements ClientMessageListener {
                             double angle = input.getShootAngle(camera, local.getPosition());
                             network.sendMessage(new ShootMessage(angle));
                             renderer.onShoot(local.getPosition().x(), local.getPosition().y(), angle);
+                            AudioManager.playShoot();
                             input.clearShoot();
                         }
                     }
@@ -205,6 +207,7 @@ public class GameClient implements ClientMessageListener {
                             }
                         }
                         renderer.onDamageTaken(fromX, fromY);
+                        AudioManager.playHit();
                     }
                     renderer.setLastLocalHealth(currentHp);
 
@@ -248,6 +251,7 @@ public class GameClient implements ClientMessageListener {
         boolean wasInGame = state.isInGame();
         state.setInGame(false);
         currentScreen = "login";
+        AudioManager.stopMusic();
         if (wasInGame) {
             Platform.runLater(() -> {
                 screenManager.showLobby();
@@ -371,6 +375,7 @@ public class GameClient implements ClientMessageListener {
                     state.setInGame(false);
                     state.setCurrentState(null);
                     idleWarningSeconds = 0;
+                    AudioManager.stopMusic();
                     screenManager.showLobby();
                     if (screenManager.getLobbyScreen() != null) {
                         screenManager.getLobbyScreen().setError("Has sido expulsado por inactividad");
@@ -387,6 +392,7 @@ public class GameClient implements ClientMessageListener {
                     state.setCurrentState(null);
                     state.setCachedTileMap(null);
                     renderer.setCachedTileMap(null);
+                    AudioManager.stopMusic();
                     currentScreen = "gameover";
                     System.out.println("[CLIENT] Partida terminada, ganador: " + gem.getWinnerUsername());
                     screenManager.showGameOver(gem);

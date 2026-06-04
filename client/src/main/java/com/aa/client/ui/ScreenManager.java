@@ -1,5 +1,6 @@
 package com.aa.client.ui;
 
+import com.aa.client.asset.AudioManager;
 import com.aa.client.game.GameClient;
 import com.aa.client.mcp.ClientMcpServer;
 import com.aa.shared.message.GameEndMessage;
@@ -54,6 +55,7 @@ public class ScreenManager {
         gameClient.getClientState().setCurrentState(null);
         gameClient.setCurrentRoomId(null);
         gameClient.setCurrentScreen("lobby");
+        AudioManager.playMusic("music/lobby_theme.mp3");
         this.lobbyScreen = new LobbyScreen(gameClient);
         switchScene(lobbyScreen.createScene(stage));
     }
@@ -64,6 +66,7 @@ public class ScreenManager {
 
     public void showLogin() {
         gameClient.setCurrentScreen("login");
+        AudioManager.stopMusic();
         this.loginScreen = new LoginScreen(gameClient);
         switchScene(loginScreen.createScene(stage));
     }
