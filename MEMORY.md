@@ -1,12 +1,12 @@
 # MEMORY.md — Punto de control del proyecto
 
-## Sesión actual: FASE 4 (UI/UX) + Documentación (Mayo 14 2026)
+## Sesión actual: Reglas y skills OpenCode (Junio 4 2026)
 
 ## Estado
 - **Rama**: `develop`
 - **Build**: `mvn clean install -DskipTests` → BUILD SUCCESS
-- **Tests servidor**: 58/58 pasan (0 failures, 0 errors)
-- **Tests UI cliente**: 21/21 pasan (0 failures, 0 errors)
+- **Tests servidor**: 57/57 pasan (0 failures, 0 errors — unitarias, excluyendo integración)
+- **Tests UI cliente**: 20/20 pasan (0 failures, 0 errors — LoginScreen 9, GameOverScreen 6, TitleBarTest 5)
 - **Servidor** y **Cliente** compilan y ejecutan correctamente.
 
 ## Cambios aplicados
@@ -39,7 +39,7 @@
 
 ### Tests UI (nuevos)
 - LoginScreenTest (9 tests): título, campos, toggle modo registro, ayuda, error
-- GameOverScreenTest (7 tests): winner, scoreboard, draw, botón volver
+- GameOverScreenTest (6 tests): winner, scoreboard, draw, botón volver
 - TitleBarTest (5 tests): título, cerrar, minimizar
 - Infraestructura: TestFX 4.0.18 + JUnit 5 + Mockito, headless via Xvfb
 
@@ -51,5 +51,33 @@
 - 6 tool providers en mcp/tools/: StatusTools, UiTools, UiSyncTools, GameTools, GameControlTools, GameObservabilityTools
 - Agregar una tool nueva = editar 1 archivo (OCP), sin tocar ClientMcpServer
 
+### Room host transfer + fixes (Mayo 2026)
+- Room.hostId mutable con transferencia automática al salir el admin
+- RoomUpdatedMessage incluye hostId para UI (corona)
+- send_key movement bypassea eventos JavaFX
+- Reset de game state en lobby/leaveRoom
+- Guard en creación de MCP server
+
+### Reglas y skills OpenCode (Junio 4 2026)
+- `.opencode/rules/SOLID-RULES.md` — 87 líneas, SOLID con ejemplos reales del codebase
+- `.opencode/rules/TILE-RULES.md` — 57 líneas, motor de tiles TMJ (rama `tile-engine`) + legacy
+- `.opencode/rules/MULTIPLAYER-RULES.md` — 157 líneas, arquitectura server-authoritative completa
+- `.opencode/skills/tile-engine-development.md` — guía detallada para trabajar con tiles/tilesets
+- `.opencode/skills/code-quality.md` — SOLID, testing, refactoring, thread safety
+- `.opencode/skills/subagent-orchestration.md` — uso de sub-agents (explore/general)
+- `.opencode/skills/session-checkpoint.md` — procedimiento "terminamos por hoy" → actualiza MEMORY.md
+- `gameplay-skills.md` corregido: ejemplo DASH usa `setPosition(add(multiply()))` en vez de mutación inválida
+- `AGENTS.md` actualizado: python → python3, referencias a rules/skills, sub-agents, gotchas nuevos
+- `opencode.json` actualizado: instructions referencia 4 archivos, nuevos comandos
+- `MEMORY.md` actualizado con test counts frescos (server: 57 unitarias, client: 20)
+
+## Ramas activas
+- `develop` — principal (estable)
+- `mcp` — features experimentales MCP
+- `tile-engine` — motor de tiles TMJ (NO mergeado, 54 archivos cambiados, +88K líneas, mapas .tmj, sprite sheets, viewport culling)
+
 ## Pendiente
+- Mergear `tile-engine` a `develop` cuando esté estable
+- Cablear ADRENALINE en MovementSystem/ShootingSystem
+- Cablear reducción de daño de DamageSystem en CollisionSystem
 - Revisar FASE 5 si aplica (no planificada)

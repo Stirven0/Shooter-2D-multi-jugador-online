@@ -1,8 +1,12 @@
 # AGENTS.md — Multiplayer Shooter Game
 
+> Reglas detalladas en `.opencode/rules/`: SOLID-RULES.md, TILE-RULES.md, MULTIPLAYER-RULES.md
+> Skills de desarrollo en `.opencode/skills/`: build-test, gameplay-skills, tile-engine-development, code-quality, game-client-mcp, mcp-bridge, ai-agent, subagent-orchestration, session-checkpoint
+
 ## Branch workflow
 - Todo el trabajo en `develop`. Nunca commitear a `main`.
 - Rama `mcp` para características experimentales de IA/MCP.
+- Rama `tile-engine` para el motor de tiles TMJ (no mergeado aún — no mezclar imports entre ramas).
 
 ## Quick start
 ```bash
@@ -11,25 +15,47 @@ java -jar server/target/server-1.0-SNAPSHOT.jar   # servidor :8080
 mvn javafx:run -pl client                  # lanzar cliente
 mvn javafx:run -pl client -Djavafx.args="--mcp"  # cliente en modo MCP
 java -jar mcp-bridge/target/mcp-bridge-1.0-SNAPSHOT.jar --username ai_player  # MCP bridge
-python tools/test_client.py                 # bot headless (pip install websocket-client)
-python tools/load_test.py 5                 # stress test (5 bots)
+python3 tools/test_client.py                # bot headless (pip install websocket-client)
+python3 tools/load_test.py 5                # stress test (5 bots)
+```
+
+## OpenCode shortcuts
+Definidos en `opencode.json`:
+```bash
+build          → mvn clean install -DskipTests
+test-server    → mvn test -pl server -Dtest="!*IntegrationTest"
+test-client    → mvn test -pl client
+run-server     → java -jar server/target/server-1.0-SNAPSHOT.jar
+run-client     → mvn javafx:run -pl client
 ```
 
 ## Test commands
 ```bash
 mvn test -pl server                         # server tests
 mvn test -pl server -Dtest="!*IntegrationTest"  # solo unitarias
-Xvfb :99 -ac -screen 0 1280x720x24 &       # display virtual para UI tests (solo Linux)
-DISPLAY=:99 mvn test -pl client             # UI tests (en Windows sin Xvfb)
+Xvfb :99 -ac -screen 0 1280x720x24 &       # display virtual para UI tests (Linux)
+DISPLAY=:99 mvn test -pl client             # UI tests (requiere Xvfb)
 mvn test -pl server,client                  # ambos módulos
 ```
 Nota: Los count de tests cambian — ejecutar los comandos para ver cifras actuales.
 `prism.order=sw` en argLine del surefire-client permite headless sin GPU.
 
+## Sub-agent usage
+- **explore**: Buscar archivos por patrón, código por keywords, responder preguntas de arquitectura. Especificar `thoroughness`: quick/medium/very thorough. Usar para: encontrar definiciones de clases, rastrear usos de métodos.
+- **general**: Tareas multi-paso complejas (escribir código, investigar, operaciones de archivos). Usar para: crear archivos, debuggear, analizar arquitectura.
+- **Paralelismo**: Lanzar múltiples sub-agents en paralelo cuando las tareas son independientes (ej: explorar game engine + test infrastructure + tile engine simultáneamente).
+- **Pasar contexto explícito**: Los sub-agents pierden el contexto de la conversación. Incluir paths de archivos, nombres de clases, y detalles verificados en el prompt.
+- **NO usar sub-agents para**: lecturas simples de archivos (Read tool), grep simples (Grep tool), definiciones de una sola clase (Grep directo).
+- **Verificar siempre**: Correr tests/lint después de cambios de código.
+
 ## Supplementary docs
-- `MEMORY.md` — estado del proyecto, resumen de fases, conteo de tests
+- `MEMORY.md` — checkpoint de sesión (actualizar con "terminamos por hoy")
 - `ENV-REVIEW.md` — informe de viabilidad del entorno (build, test, load test)
-- `.opencode/skills/` — 5 skills de desarrollo para opencode (ai-agent, build-test, game-client-mcp, gameplay-skills, mcp-bridge)
+- `.opencode/skills/` — 9 skills de desarrollo
+- `.opencode/rules/` — 3 archivos de reglas detalladas (SOLID, tiles, multiplayer)
+
+## Loose Python scripts in root
+`fight.py`, `fight2.py`, `fight3.py`, `fight_fast.py`, `duel.py`, `direct_test.py` son scripts de prueba/bot. No son parte de la aplicación. Los scripts oficiales están en `tools/`.
 
 ## Architecture rules
 - **Server-authoritative**: Client NEVER sends positions. Only normalized inputs (-1..1).
@@ -62,15 +88,7 @@ Nota: Los count de tests cambian — ejecutar los comandos para ver cifras actua
 - **Screen validation**: Todos los tools UI validan que el cliente esté en la pantalla correcta antes de ejecutarse (ej. `ui_create_room` solo funciona desde lobby).
 - **TCP transport**: `--mcp` solo ya activa TCP en `localhost:4567`. Usar `--hostmcp` / `--portmcp` para override. JSON-RPC 2.0 con delimitador newline.
 - **MCP SDK**: `io.modelcontextprotocol.sdk:mcp-bom:0.17.2` (BOM import en root, usar `mcp-core`/`mcp-json`/`mcp-json-jackson2` directamente). Requiere `jackson-databind` para `JacksonMcpJsonMapper`.
-- **opencode → cliente**: `opencode.json` tiene un MCP server `game-client` que conecta via `nc` al TCP del cliente. Requiere cliente corriendo con `--mcp` (TCP activo por defecto en puerto 4567). Para usar, reinicia opencode después de lanzar el cliente:
-  ```bash
-  # Terminal 1: servidor
-  java -jar server/target/server-1.0-SNAPSHOT.jar
-  # Terminal 2: cliente con MCP TCP
-  java --module-path ... --add-modules ... -jar client/target/client-1.0-SNAPSHOT.jar --mcp
-  # Terminal 3: opencode (se conecta al MCP del cliente)
-  opencode
-  ```
+- **opencode → cliente**: `opencode.json` tiene un MCP server `game-client` que conecta via `nc` al TCP del cliente. Requiere cliente corriendo con `--mcp` (TCP activo por defecto en puerto 4567).
 
 ## Client CLI flags
 Todas las flags se pasan con `-Djavafx.args="..."` en `mvn javafx:run` (NO con `exec.args`):
@@ -107,6 +125,8 @@ mvn javafx:run -pl client -Djavafx.args="--mcp --host 10.0.0.5 --portmcp 9000"
 - **Host transfer en sala**: `Room.hostId` mutable. `RoomManager.leaveRoom()` transfiere host si el que se va es el admin y quedan jugadores. `RoomUpdatedMessage` incluye `hostId`.
 - **GAME_STATE filtrado por room**: El cliente ignora `GAME_STATE` si `gameId` no coincide con `currentRoomId`. Evita entrar a partidas de otras salas.
 - **System.exit(0) on close**: `Main.java` hace `System.exit(0)` al cerrar ventana para matar threads non-daemon de Reactor/MCP SDK.
+- **DamageSystem no cableado**: `CollisionSystem` aplica daño sin pasar por reducción de `DamageSystem` — la reducción de daño del UpgradeSystem no tiene efecto.
+- **ADRENALINE sin efecto real**: `SkillSystem` activa un timer pero `MovementSystem`/`ShootingSystem` no consultan multiplicadores de ADRENALINE.
 
 ## File structure
 ```
@@ -119,7 +139,8 @@ client/     → network/, game/, input/, render/, ui/, asset/, util/
               mcp/tools/ → StatusTools, UiTools, UiSyncTools, GameTools,
                            GameObservabilityTools, GameControlTools
 mcp-bridge/ → MCP bridge standalone (McpBridge.java + BridgeGameClient.java)
-.opencode/skills/ → skills de desarrollo para opencode (5 skills)
+.opencode/skills/ → 9 skills de desarrollo
+.opencode/rules/ → SOLID-RULES.md, TILE-RULES.md, MULTIPLAYER-RULES.md
 tools/      → Python test scripts (test_client.py, load_test.py, multi_client_test.py)
 ```
 
@@ -132,7 +153,7 @@ tools/      → Python test scripts (test_client.py, load_test.py, multi_client_
 
 ## Adding new player skills
 1. Add enum value to `PlayerSkill.java` (cooldown, duration, category, displayName)
-2. Add effect logic case in `SkillSystem.activateSkill()`
+2. Add effect logic case in `SkillSystem.activateSkill()` — usar `setPosition(new Vector2(...))` NO `getPosition().add(x, y)`
 3. Add deactivation logic in `SkillSystem.deactivateEffect()` if needed
 4. Update HUD in `Renderer.drawHud()` if new visual is needed
 5. If skill has pickup, add to `GameInstance.spawnInitialPickups()`

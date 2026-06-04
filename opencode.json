@@ -1,18 +1,27 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "instructions": ["AGENTS.md"],
+  "instructions": [
+    "AGENTS.md",
+    ".opencode/rules/SOLID-RULES.md",
+    ".opencode/rules/TILE-RULES.md",
+    ".opencode/rules/MULTIPLAYER-RULES.md"
+  ],
   "command": {
     "build": {
       "description": "Compilar todo el proyecto",
       "template": "Ejecuta: mvn clean install -DskipTests"
     },
     "test-server": {
-      "description": "Tests del servidor",
+      "description": "Tests del servidor (solo unitarias)",
       "template": "Ejecuta: mvn test -pl server -Dtest=\"!*IntegrationTest\""
     },
+    "test-server-all": {
+      "description": "Tests del servidor (incluye integración)",
+      "template": "Ejecuta: mvn test -pl server"
+    },
     "test-client": {
-      "description": "Tests UI del cliente",
-      "template": "Ejecuta: mvn test -pl client"
+      "description": "Tests UI del cliente (requiere Xvfb)",
+      "template": "Ejecuta: Xvfb :99 -ac -screen 0 1280x720x24 & sleep 0.5 && DISPLAY=:99 mvn test -pl client"
     },
     "run-server": {
       "description": "Iniciar servidor WebSocket en puerto 8080",
@@ -21,6 +30,14 @@
     "run-client": {
       "description": "Iniciar cliente JavaFX",
       "template": "Ejecuta: mvn javafx:run -pl client"
+    },
+    "run-client-mcp": {
+      "description": "Iniciar cliente JavaFX en modo MCP",
+      "template": "Ejecuta: mvn javafx:run -pl client -Djavafx.args=\"--mcp\""
+    },
+    "checkpoint": {
+      "description": "Actualizar MEMORY.md al terminar sesión (usa skill session-checkpoint)",
+      "template": "Ejecuta: mvn test -pl server -Dtest=\"!*IntegrationTest\" y actualiza MEMORY.md con los resultados"
     }
   },
   "mcp": {
