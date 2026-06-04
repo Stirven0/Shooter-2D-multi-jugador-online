@@ -352,7 +352,7 @@ public class GameClient implements ClientMessageListener {
                         currentScreen = "game";
                         screenManager.showGame();
                         AudioManager.stopMusic();
-                        AudioManager.playMusic("music/battle_theme_01.mp3");
+                        AudioManager.playMusic("music/battle_theme_01.wav");
                     }
                 }
                 case PING -> {}

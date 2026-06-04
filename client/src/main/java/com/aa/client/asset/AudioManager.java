@@ -1,8 +1,6 @@
 package com.aa.client.asset;
 
 import javafx.scene.media.AudioClip;
-import javafx.scene.media.Media;
-import javafx.scene.media.MediaPlayer;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -11,10 +9,11 @@ import java.util.Map;
  * Gestor de audio del cliente.
  * Proporciona métodos estáticos para reproducir efectos de sonido (SFX)
  * y música de fondo, con control de volumen maestro y por canal.
+ * Usa AudioClip para todo (WAV nativo, sin dependencia de GStreamer).
  */
 public class AudioManager {
     private static final Map<String, AudioClip> sfxCache = new HashMap<>();
-    private static MediaPlayer musicPlayer;
+    private static AudioClip currentMusic;
     private static double masterVolume = 0.7;
     private static double sfxVolume = 0.8;
     private static double musicVolume = 0.5;
@@ -78,7 +77,7 @@ public class AudioManager {
     }
 
     /**
-     * Reproduce música de fondo en bucle infinito.
+     * Reproduce música de fondo en bucle infinito usando AudioClip.
      * Detiene cualquier música que se estuviera reproduciendo previamente.
      * @param path ruta del archivo de música dentro de /audio/
      */
@@ -86,12 +85,23 @@ public class AudioManager {
         try {
             stopMusic();
             var url = AudioManager.class.getResource("/audio/" + path);
-            if (url == null) return;
-            Media media = new Media(url.toExternalForm());
-            musicPlayer = new MediaPlayer(media);
-            musicPlayer.setVolume(masterVolume * musicVolume);
-            musicPlayer.setCycleCount(MediaPlayer.INDEFINITE);
-            musicPlayer.play();
+            if (url == null) {
+                System.err.println("[AUDIO] Music file not found: " + path);
+                return;
+            }
+            AudioClip clip = sfxCache.computeIfAbsent(path, p -> {
+                try {
+                    return new AudioClip(url.toExternalForm());
+                } catch (Exception e) {
+                    System.err.println("[AUDIO] Error loading music " + p + ": " + e.getMessage());
+                    return null;
+                }
+            });
+            if (clip != null) {
+                currentMusic = clip;
+                clip.setCycleCount(AudioClip.INDEFINITE);
+                clip.play(masterVolume * musicVolume);
+            }
         } catch (Exception e) {
             System.err.println("[AUDIO] Error playing music: " + e.getMessage());
         }
@@ -99,10 +109,9 @@ public class AudioManager {
 
     /** Detiene y libera la música de fondo actual. */
     public static void stopMusic() {
-        if (musicPlayer != null) {
-            musicPlayer.stop();
-            musicPlayer.dispose();
-            musicPlayer = null;
+        if (currentMusic != null) {
+            currentMusic.stop();
+            currentMusic = null;
         }
     }
 
@@ -131,10 +140,11 @@ public class AudioManager {
      */
     public static void setMusicVolume(double v) { musicVolume = v; updateMusicVolume(); }
 
-    /** Actualiza el volumen del reproductor de música activo. */
+    /** Actualiza el volumen de la música activa. */
     private static void updateMusicVolume() {
-        if (musicPlayer != null) {
-            musicPlayer.setVolume(masterVolume * musicVolume);
+        if (currentMusic != null) {
+            currentMusic.stop();
+            currentMusic.play(masterVolume * musicVolume);
         }
     }
 }

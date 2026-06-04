@@ -55,7 +55,7 @@ public class ScreenManager {
         gameClient.getClientState().setCurrentState(null);
         gameClient.setCurrentRoomId(null);
         gameClient.setCurrentScreen("lobby");
-        AudioManager.playMusic("music/lobby_theme.mp3");
+        AudioManager.playMusic("music/lobby_theme.wav");
         this.lobbyScreen = new LobbyScreen(gameClient);
         switchScene(lobbyScreen.createScene(stage));
     }
