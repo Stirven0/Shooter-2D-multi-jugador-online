@@ -4,11 +4,10 @@ import com.aa.client.asset.SpriteManager;
 import com.aa.shared.model.Bullet;
 import com.aa.shared.model.Obstacle;
 import com.aa.shared.model.Player;
+import com.aa.shared.model.TileMap;
 import com.aa.shared.model.PowerUpPickup;
 import com.aa.shared.model.PowerUpType;
-import com.aa.shared.model.SkillSlot;
 import com.aa.shared.model.WeaponPickup;
-import com.aa.shared.model.WeaponType;
 import com.aa.shared.state.GameState;
 import java.util.List;
 import javafx.scene.canvas.GraphicsContext;
@@ -19,15 +18,20 @@ import javafx.scene.text.TextAlignment;
 
 public class Renderer {
     private final Camera camera;
-    private boolean showDebug = false;
-    private double fps = 0;
+    private final TileRenderer tileRenderer;
+    private final HudRenderer hudRenderer;
+    private TileMap cachedTileMap;
 
     public Renderer(Camera camera) {
         this.camera = camera;
+        this.tileRenderer = new TileRenderer(camera);
+        this.hudRenderer = new HudRenderer();
     }
 
-    public void setShowDebug(boolean v) { this.showDebug = v; }
-    public void setFps(double v) { this.fps = v; }
+    public void setCachedTileMap(TileMap tileMap) { this.cachedTileMap = tileMap; }
+
+    public void setShowDebug(boolean v) { hudRenderer.setShowDebug(v); }
+    public void setFps(double v) { hudRenderer.setFps(v); }
 
     public void render(GraphicsContext gc, GameState state, String localPlayerId, double mouseScreenX, double mouseScreenY) {
         double cw = gc.getCanvas().getWidth();
@@ -45,24 +49,28 @@ public class Renderer {
         }
 
         drawGrid(gc);
-        drawObstacles(gc, state.getObstacles());
+        if (cachedTileMap != null) {
+            tileRenderer.render(gc, cachedTileMap, cw, ch);
+        } else {
+            drawObstacles(gc, state.getObstacles());
+        }
         drawWeaponPickups(gc, state.getWeaponPickups());
         drawPowerUpPickups(gc, state.getPowerUpPickups());
 
         for (Player p : state.getAllPlayers()) {
             boolean isLocal = p.getId().equals(localPlayerId);
             drawPlayer(gc, p, isLocal);
-            if (showDebug) drawPlayerHitbox(gc, p);
+            if (hudRenderer.isShowDebug()) drawPlayerHitbox(gc, p);
         }
 
         for (Bullet b : state.getAllBullets()) {
             drawBullet(gc, b);
-            if (showDebug) drawBulletHitbox(gc, b);
+            if (hudRenderer.isShowDebug()) drawBulletHitbox(gc, b);
         }
 
         drawCrosshair(gc, mouseScreenX, mouseScreenY);
-        drawHud(gc, state, localPlayerId);
-        if (showDebug) drawDebugOverlay(gc, state, localPlayerId);
+        hudRenderer.render(gc, state, localPlayerId);
+        hudRenderer.drawDebugOverlay(gc, state, localPlayerId);
     }
 
     private void drawGrid(GraphicsContext gc) {
@@ -240,41 +248,6 @@ public class Renderer {
         }
     }
 
-    private void drawDebugOverlay(GraphicsContext gc, GameState state, String localPlayerId) {
-        // double cw = gc.getCanvas().getWidth();
-        // double ch = gc.getCanvas().getHeight();
-
-        gc.setFill(Color.rgb(13, 17, 23, 0.75));
-        gc.fillRoundRect(5, 5, 240, 200, 6, 6);
-        gc.setStroke(Color.rgb(48, 54, 61));
-        gc.setLineWidth(1);
-        gc.strokeRoundRect(5, 5, 240, 200, 6, 6);
-
-        gc.setFill(Color.rgb(88, 166, 255));
-        gc.setFont(Font.font("Monospace", 12));
-
-        Player local = state.getPlayer(localPlayerId);
-        int alive = (int) state.getAllPlayers().stream().filter(Player::isAlive).count();
-        int total = state.getAllPlayers().size();
-
-        int y = 22;
-        int lh = 15;
-        gc.fillText(String.format("FPS: %.0f", fps), 12, y); y += lh;
-        gc.fillText("Tick: " + state.getTick(), 12, y); y += lh;
-        gc.fillText("Jugadores: " + alive + "/" + total + " vivos", 12, y); y += lh;
-        gc.fillText("Balas: " + state.getAllBullets().size(), 12, y); y += lh;
-        if (local != null) {
-            gc.fillText("Pos: %.0f, %.0f".formatted(local.getPosition().x(), local.getPosition().y()), 12, y); y += lh;
-            gc.fillText("HP: %.0f".formatted(local.getHealth()), 12, y); y += lh;
-            gc.fillText("Arma: " + local.getCurrentWeapon().getDisplayName(), 12, y); y += lh;
-            gc.fillText("Puntos mejora: " + local.getUpgradePoints(), 12, y); y += lh;
-            String status = state.getStatus() != null ? state.getStatus().name() : "?";
-            gc.fillText("Estado: " + status, 12, y); y += lh;
-        }
-        gc.setFill(Color.rgb(139, 148, 158));
-        gc.fillText("F3: ocultar debug", 12, y);
-    }
-
     private void drawPlayerHitbox(GraphicsContext gc, Player p) {
         double sx = camera.worldToScreenX(p.getPosition().x());
         double sy = camera.worldToScreenY(p.getPosition().y());
@@ -293,150 +266,5 @@ public class Renderer {
         gc.setStroke(Color.rgb(248, 81, 73, 0.4));
         gc.setLineWidth(1);
         gc.strokeOval(sx - r, sy - r, r * 2, r * 2);
-    }
-
-    private void drawHud(GraphicsContext gc, GameState state, String localPlayerId) {
-        Player local = state.getPlayer(localPlayerId);
-        if (local == null) return;
-
-        double cw = gc.getCanvas().getWidth();
-        double ch = gc.getCanvas().getHeight();
-
-        // bottom-left: HP bar large
-        double hpX = 16;
-        double hpY = ch - 40;
-        double hpW = 180;
-        double hpH = 16;
-        gc.setFill(Color.rgb(13, 17, 23, 0.8));
-        gc.fillRoundRect(hpX, hpY, hpW, hpH, 4, 4);
-        gc.setStroke(Color.rgb(48, 54, 61));
-        gc.setLineWidth(1);
-        gc.strokeRoundRect(hpX, hpY, hpW, hpH, 4, 4);
-
-        double ratio = local.getHealth() / 100.0;
-        Color hpColor;
-        if (ratio > 0.6) hpColor = Color.rgb(46, 160, 67);
-        else if (ratio > 0.3) hpColor = Color.rgb(210, 153, 34);
-        else hpColor = Color.rgb(248, 81, 73);
-        double fillW = (hpW - 4) * ratio;
-        if (fillW > 0) {
-            gc.setFill(hpColor);
-            gc.fillRoundRect(hpX + 2, hpY + 2, fillW, hpH - 4, 3, 3);
-        }
-
-        gc.setFill(Color.WHITE);
-        gc.setFont(Font.font("Monospace", 11));
-        gc.setTextAlign(TextAlignment.RIGHT);
-        gc.fillText((int) local.getHealth() + " HP", hpX + hpW - 6, hpY + 12);
-
-        // Shield bar (below HP)
-        if (local.getShield() > 0) {
-            double shY = hpY + hpH + 4;
-            double shW = 180;
-            double shH = 6;
-            gc.setFill(Color.rgb(13, 17, 23, 0.8));
-            gc.fillRoundRect(hpX, shY, shW, shH, 3, 3);
-            double shieldRatio = Math.min(local.getShield() / 40.0, 1.0);
-            gc.setFill(Color.rgb(88, 166, 255));
-            gc.fillRoundRect(hpX + 1, shY + 1, (shW - 2) * shieldRatio, shH - 2, 2, 2);
-        }
-
-        // Weapon info (bottom-right)
-        double wX = cw - 200;
-        double wY = ch - 60;
-        gc.setFill(Color.rgb(13, 17, 23, 0.8));
-        gc.fillRoundRect(wX, wY, 190, 50, 6, 6);
-        gc.setStroke(Color.rgb(48, 54, 61));
-        gc.setLineWidth(1);
-        gc.strokeRoundRect(wX, wY, 190, 50, 6, 6);
-
-        WeaponType current = local.getCurrentWeapon();
-        gc.setFill(Color.rgb(88, 166, 255));
-        gc.setFont(Font.font("Monospace", 14));
-        gc.setTextAlign(TextAlignment.LEFT);
-        gc.fillText(current.getDisplayName(), wX + 10, wY + 20);
-
-        gc.setFill(Color.rgb(139, 148, 158));
-        gc.setFont(Font.font("Monospace", 10));
-        gc.fillText("Slot: " + (local.getCurrentWeaponSlot() == 0 ? "1" : "2") + "  [Q]", wX + 10, wY + 40);
-
-        if (local.getSecondaryWeapon() != null) {
-            gc.setFill(Color.rgb(48, 54, 61));
-            gc.fillText("Slot " + (local.getCurrentWeaponSlot() == 0 ? "2" : "1") + ": " + local.getSecondaryWeapon().getDisplayName(), wX + 10, wY + 55);
-        }
-
-        // Upgrade points
-        if (local.getUpgradePoints() > 0) {
-            gc.setFill(Color.rgb(210, 153, 34));
-            gc.setFont(Font.font("Monospace", 11));
-            gc.setTextAlign(TextAlignment.RIGHT);
-            gc.fillText("Mejora x" + local.getUpgradePoints(), cw - 16, ch - 80);
-        }
-
-        // Skills HUD (bottom center)
-        double skillY = ch - 40;
-        for (int i = 0; i < 2; i++) {
-            SkillSlot slot = local.getSkillSlots() != null && i < local.getSkillSlots().length ? local.getSkillSlots()[i] : null;
-            if (slot == null || slot.getSkill() == null) continue;
-            double skX = cw/2 + (i - 1) * 80;
-
-            gc.setFill(Color.rgb(13, 17, 23, 0.8));
-            gc.fillRoundRect(skX - 30, skillY - 12, 60, 24, 4, 4);
-            gc.setStroke(Color.rgb(48, 54, 61));
-            gc.setLineWidth(1);
-            gc.strokeRoundRect(skX - 30, skillY - 12, 60, 24, 4, 4);
-
-            String keyLabel = i == 0 ? "[E]" : "[F]";
-            gc.setFill(Color.rgb(139, 148, 158));
-            gc.setFont(Font.font("Monospace", 9));
-            gc.setTextAlign(TextAlignment.CENTER);
-            gc.fillText(keyLabel, skX, skillY + 4);
-
-            if (slot.getCooldownRemaining() > 0) {
-                gc.setFill(Color.rgb(248, 81, 73, 0.5));
-                gc.fillText(String.format("%.1f", slot.getCooldownRemaining()), skX, skillY + 20);
-            } else {
-                gc.setFill(Color.rgb(88, 166, 255));
-                gc.setFont(Font.font("Monospace", 10));
-                gc.fillText(slot.getSkill().getDisplayName(), skX, skillY + 20);
-            }
-        }
-
-        // Scoreboard (top-right)
-        double sbX = cw - 200;
-        double sbY = 10;
-        int rows = state.getAllPlayers().size();
-        double sbH = 28 + rows * 20;
-        gc.setFill(Color.rgb(13, 17, 23, 0.8));
-        gc.fillRoundRect(sbX - 6, sbY - 4, 196, sbH, 6, 6);
-        gc.setStroke(Color.rgb(48, 54, 61));
-        gc.setLineWidth(1);
-        gc.strokeRoundRect(sbX - 6, sbY - 4, 196, sbH, 6, 6);
-
-        gc.setFill(Color.rgb(139, 148, 158));
-        gc.setFont(Font.font("Monospace", 10));
-        gc.setTextAlign(TextAlignment.LEFT);
-        gc.fillText("JUGADOR", sbX, sbY + 10);
-        gc.setTextAlign(TextAlignment.RIGHT);
-        gc.fillText("K  D", sbX + 180, sbY + 10);
-
-        gc.setStroke(Color.rgb(48, 54, 61));
-        gc.setLineWidth(1);
-        gc.strokeLine(sbX, sbY + 16, sbX + 180, sbY + 16);
-
-        int i = 1;
-        List<Player> sorted = new java.util.ArrayList<>(state.getAllPlayers());
-        sorted.sort(java.util.Comparator.comparingInt(Player::getKills).reversed());
-        for (Player p : sorted) {
-            double y = sbY + 14 + i * 20;
-            boolean isLocalP = p.getId().equals(localPlayerId);
-            gc.setFill(isLocalP ? Color.rgb(88, 166, 255) : Color.rgb(240, 246, 252));
-            gc.setFont(Font.font("Monospace", 12));
-            gc.setTextAlign(TextAlignment.LEFT);
-            gc.fillText(p.getUsername(), sbX, y);
-            gc.setTextAlign(TextAlignment.RIGHT);
-            gc.fillText(p.getKills() + "  " + p.getDeaths(), sbX + 180, y);
-            i++;
-        }
     }
 }

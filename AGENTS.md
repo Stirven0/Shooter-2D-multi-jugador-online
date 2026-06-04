@@ -6,7 +6,7 @@
 ## Branch workflow
 - Todo el trabajo en `develop`. Nunca commitear a `main`.
 - Rama `mcp` para características experimentales de IA/MCP.
-- Rama `tile-engine` para el motor de tiles TMJ (no mergeado aún — no mezclar imports entre ramas).
+- Rama `tile-engine` para el motor de tiles TMJ (ya mergeada a `develop`).
 
 ## Quick start
 ```bash
@@ -33,6 +33,7 @@ run-client     → mvn javafx:run -pl client
 ```bash
 mvn test -pl server                         # server tests
 mvn test -pl server -Dtest="!*IntegrationTest"  # solo unitarias
+mvn test -pl server -Dtest="com.aa.server.game.system.*"  # paquete específico
 Xvfb :99 -ac -screen 0 1280x720x24 &       # display virtual para UI tests (Linux)
 DISPLAY=:99 mvn test -pl client             # UI tests (requiere Xvfb)
 mvn test -pl server,client                  # ambos módulos

@@ -1,10 +1,12 @@
 package com.aa.shared.message;
 
 import java.util.List;
+import java.util.Map;
 
 public class RoomUpdatedMessage extends Message {
     private String roomId;
     private List<String> playerIds;
+    private Map<String, String> playerUsernames;
     private String status;
     private String hostId;
 
@@ -17,6 +19,9 @@ public class RoomUpdatedMessage extends Message {
     
     public List<String> getPlayerIds() { return playerIds; }
     public void setPlayerIds(List<String> playerIds) { this.playerIds = playerIds; }
+
+    public Map<String, String> getPlayerUsernames() { return playerUsernames; }
+    public void setPlayerUsernames(Map<String, String> playerUsernames) { this.playerUsernames = playerUsernames; }
     
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

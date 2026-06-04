@@ -17,7 +17,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class LoginScreen {
+public class LoginScreen implements IScreen {
     private final GameClient gameClient;
     private Label status;
     private TextField user;
@@ -63,7 +63,7 @@ public class LoginScreen {
     public Scene createScene(Stage stage) {
         VBox form = new VBox(12);
         form.setAlignment(Pos.CENTER);
-        form.setMaxWidth(320);
+        form.setMaxSize(320, javafx.scene.layout.Region.USE_PREF_SIZE);
         form.setStyle(Styles.PANEL);
 
         Label title = new Label("MULTIPLAYER\nSHOOTER");
@@ -116,7 +116,7 @@ public class LoginScreen {
 
         form.getChildren().addAll(title, subtitle, user, pass, btn, toggleLink, status, bottomRow);
 
-        helpOverlay = createHelpOverlay();
+        helpOverlay = HelpOverlay.create(false);
         helpOverlay.setVisible(false);
         helpOverlay.setManaged(false);
 
@@ -131,44 +131,9 @@ public class LoginScreen {
         root.setTop(TitleBar.create("Shooter Game", stage));
         root.setCenter(centerStack);
 
-        Scene scene = new Scene(root, ClientConfig.WIDTH, ClientConfig.HEIGHT + TitleBar.HEIGHT);
+        Scene scene = new Scene(root);
+        ScreenManager.addFullScreenHandler(scene, gameClient.getScreenManager());
         return scene;
-    }
-
-    private VBox createHelpOverlay() {
-        VBox overlay = new VBox(12);
-        overlay.setAlignment(Pos.CENTER);
-        overlay.setStyle("-fx-background-color: rgba(13, 17, 23, 0.92); -fx-padding: 30; -fx-background-radius: 8;");
-
-        Label helpTitle = new Label("AYUDA - CONTROLES");
-        helpTitle.setStyle("-fx-text-fill: #f0f6fc; -fx-font-size: 20px; -fx-font-weight: bold;");
-
-        String[] lines = {
-            "WASD / Flechas ................. Moverse",
-            "Mouse ......................... Apuntar",
-            "Click izquierdo ............... Disparar",
-            "SHIFT ......................... Correr",
-            "",
-            "Objetivo: Sé el último jugador en pie.",
-            "Elimina a tus oponentes para ganar."
-        };
-        VBox textBox = new VBox(3);
-        textBox.setAlignment(Pos.CENTER);
-        for (String line : lines) {
-            Label l = new Label(line);
-            l.setStyle("-fx-text-fill: #8b949e; -fx-font-size: 14px;");
-            textBox.getChildren().add(l);
-        }
-
-        Button closeBtn = new Button("Volver");
-        Styles.setBtnStyle(closeBtn, Styles.ACCENT, Styles.ACCENT_HOVER);
-        closeBtn.setOnAction(e -> {
-            overlay.setVisible(false);
-            overlay.setManaged(false);
-        });
-
-        overlay.getChildren().addAll(helpTitle, textBox, closeBtn);
-        return overlay;
     }
 
     private void toggleMode() {

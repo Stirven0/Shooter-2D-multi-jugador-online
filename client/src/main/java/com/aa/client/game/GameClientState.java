@@ -1,5 +1,6 @@
 package com.aa.client.game;
 
+import com.aa.shared.model.TileMap;
 import com.aa.shared.state.GameState;
 import javafx.application.Platform;
 
@@ -74,6 +75,12 @@ public class GameClientState {
      * Si ya se está en el FX thread, ejecuta directamente; si no, lo encola.
      * @param r tarea a ejecutar
      */
+    // Tile map cache (received once via MAP_DATA, not on every tick)
+    private TileMap cachedTileMap;
+
+    public TileMap getCachedTileMap() { return cachedTileMap; }
+    public void setCachedTileMap(TileMap tileMap) { this.cachedTileMap = tileMap; }
+
     public static void runLater(Runnable r) {
         if (Platform.isFxApplicationThread()) {
             r.run();

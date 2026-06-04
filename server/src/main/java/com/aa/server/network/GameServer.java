@@ -10,6 +10,8 @@ import com.aa.shared.message.Message;
 import com.aa.shared.message.PingMessage;
 import com.aa.shared.message.RoomUpdatedMessage;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import com.aa.server.game.map.MapManager;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
@@ -65,6 +67,12 @@ public class GameServer extends WebSocketServer {
                     update.setPlayerIds(new ArrayList<>(room.getPlayerIds()));
                     update.setStatus(room.getStatus().name());
                     update.setHostId(room.getHostId());
+                    Map<String, String> usernames = new HashMap<>();
+                    for (String pid : room.getPlayerIds()) {
+                        ClientConnection c2 = connectionManager.getByPlayerId(pid);
+                        usernames.put(pid, c2 != null ? c2.getUsername() : pid);
+                    }
+                    update.setPlayerUsernames(usernames);
                     for (String pid : room.getPlayerIds()) {
                         ClientConnection c = connectionManager.getByPlayerId(pid);
                         if (c != null) c.send(update);

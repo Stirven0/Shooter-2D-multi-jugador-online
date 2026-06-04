@@ -51,6 +51,35 @@
 - 6 tool providers en mcp/tools/: StatusTools, UiTools, UiSyncTools, GameTools, GameControlTools, GameObservabilityTools
 - Agregar una tool nueva = editar 1 archivo (OCP), sin tocar ClientMcpServer
 
+### Tile Engine Review — 6 fases (completado, Mayo 26 2026)
+#### FASE 1: MAP_DATA — TileMap fuera de cada tick
+- `MapDataMessage` (nuevo): contiene `mapId` + `TileMap`, enviado 1 vez en `GameInstance.start()`
+- `GameState.tileMap` eliminado del snapshot; cliente cachea en `GameClientState.cachedTileMap` y `Renderer.cachedTileMap`
+
+#### FASE 2: Arreglar MapListMessage + limpieza
+- `MapListMessage` usa `MapDataMessage` en vez de `GameMap` serializado inline
+
+#### FASE 3: Crear mapas TMJ + TiledMapLoader
+- 4 mapas `.tmj` (80×80, 100×100, 120×120, 140×140) con `tilewidth: 32`
+- `TiledMapLoader` (191L): parsea .tmj, horizontal run merging para obstáculos
+- `MapManager` con fallback a JSON legacy
+
+#### FASE 4: TileRenderer + viewport culling
+- `TileRenderer` (112L): renderizado con sprite sheet, viewport culling
+- `TileColors` (51L): paleta de colores con hash determinista
+
+#### FASE 5: HudRenderer + IScreen + HelpOverlay (SOLID refactor)
+- `HudRenderer` (204L): HP bar, shield, armas, skills, scoreboard, debug overlay
+- `IScreen` interface: `createScene(Stage)`, `getErrorMessage()`, `setError(String)`
+- `HelpOverlay` (68L): componente compartido entre Login y Game
+
+#### FASE 6: Fixes gameplay
+- Tick 30Hz → 20Hz (`ServerConfig`)
+- Move throttle 50ms mínimo (cliente)
+- Usernames en lobby (no raw IDs) + crown para host
+- Fullscreen persistente entre pantallas (F11 global)
+- `style.css` para scrollbars dark
+
 ### Room host transfer + fixes (Mayo 2026)
 - Room.hostId mutable con transferencia automática al salir el admin
 - RoomUpdatedMessage incluye hostId para UI (corona)
@@ -74,10 +103,10 @@
 ## Ramas activas
 - `develop` — principal (estable)
 - `mcp` — features experimentales MCP
-- `tile-engine` — motor de tiles TMJ (NO mergeado, 54 archivos cambiados, +88K líneas, mapas .tmj, sprite sheets, viewport culling)
+- `tile-engine` — motor de tiles TMJ (mergeado a develop Junio 4 2026)
 
 ## Pendiente
-- Mergear `tile-engine` a `develop` cuando esté estable
 - Cablear ADRENALINE en MovementSystem/ShootingSystem
 - Cablear reducción de daño de DamageSystem en CollisionSystem
+- Posible soporte para más tilesets (ahora solo warehouse)
 - Revisar FASE 5 si aplica (no planificada)

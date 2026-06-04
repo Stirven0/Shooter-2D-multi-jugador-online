@@ -40,6 +40,10 @@ public enum MessageType {
     PLAYER_DEATH,    // Jugador muerto
     GAME_END,        // Partida terminada con resultados
     
+    // Mapa
+    MAP_DATA,        // Datos del tile map (se envía 1 vez al iniciar)
+    MAP_LIST,        // Lista de mapas disponibles
+
     // Sistema
     PING,            // Latencia
     PONG,

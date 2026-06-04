@@ -22,7 +22,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class GameScreen {
+public class GameScreen implements IScreen {
     private final GameClient gameClient;
     private final Canvas canvas;
     private final GraphicsContext gc;
@@ -39,7 +39,6 @@ public class GameScreen {
 
     private static final String OVERLAY = "-fx-background-color: rgba(13, 17, 23, 0.85); -fx-background-radius: 12; -fx-padding: 30;";
     private static final String OVERLAY_TITLE = "-fx-text-fill: #f0f6fc; -fx-font-size: 24px; -fx-font-weight: bold;";
-    private static final String OVERLAY_TEXT = "-fx-text-fill: #8b949e; -fx-font-size: 14px;";
 
     public GameScreen(GameClient gameClient) {
         this.gameClient = gameClient;
@@ -52,7 +51,7 @@ public class GameScreen {
         StackPane gameArea = new StackPane(canvas);
 
         pauseOverlay = buildPauseOverlay(stage);
-        helpOverlay = buildHelpOverlay();
+        helpOverlay = HelpOverlay.create(true);
         settingsOverlay = new SettingsOverlay(gameClient, stage, () -> {}, false);
 
         idleWarningLabel = new Label();
@@ -67,16 +66,19 @@ public class GameScreen {
         root.setTop(TitleBar.create("Partida en curso", stage, true));
         root.setCenter(centerStack);
 
-        Scene scene = new Scene(root, ClientConfig.WIDTH, ClientConfig.HEIGHT + TitleBar.HEIGHT);
+        Scene scene = new Scene(root);
 
         inputHandler.attach(scene);
 
         scene.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
             if (e.getCode() == KeyCode.ESCAPE) {
+                if (settingsOverlay.getRoot().isVisible()) {
+                    toggleSettings();
+                    e.consume();
+                    return;
+                }
                 if (helpOverlay.isVisible()) {
                     toggleHelp();
-                } else if (settingsOverlay.getRoot().isVisible()) {
-                    toggleSettings();
                 } else {
                     togglePause();
                 }
@@ -84,12 +86,17 @@ public class GameScreen {
             } else if (e.getCode() == KeyCode.F3) {
                 gameClient.setShowDebug(!gameClient.isShowDebug());
                 e.consume();
+            } else if (e.getCode() == KeyCode.F11) {
+                gameClient.getScreenManager().toggleFullScreen();
+                e.consume();
             }
         });
 
         stage.fullScreenProperty().addListener((obs, was, is) ->
             Platform.runLater(() -> resizeCanvas(stage))
         );
+        stage.widthProperty().addListener((obs, old, w) -> resizeCanvas(stage));
+        stage.heightProperty().addListener((obs, old, h) -> resizeCanvas(stage));
         resizeCanvas(stage);
 
         gameLoop = new AnimationTimer() {
@@ -126,6 +133,7 @@ public class GameScreen {
         overlay.setStyle(OVERLAY);
         overlay.setVisible(false);
         overlay.setMaxWidth(280);
+        overlay.setMaxHeight(360);
 
         Label title = new Label("PAUSA");
         title.setStyle(OVERLAY_TITLE);
@@ -150,39 +158,6 @@ public class GameScreen {
         });
 
         overlay.getChildren().addAll(title, resumeBtn, helpBtn, settingsBtn, leaveBtn);
-        return overlay;
-    }
-
-    private VBox buildHelpOverlay() {
-        VBox overlay = new VBox(12);
-        overlay.setAlignment(Pos.CENTER);
-        overlay.setStyle(OVERLAY);
-        overlay.setVisible(false);
-        overlay.setMaxWidth(360);
-
-        Label title = new Label("AYUDA - CONTROLES");
-        title.setStyle(OVERLAY_TITLE);
-
-        String[] lines = {
-            "WASD / Flechas ................. Moverse",
-            "Mouse ......................... Apuntar",
-            "Click izquierdo ............... Disparar",
-            "SHIFT ......................... Correr",
-            "F3 ............................ Debug",
-            "",
-            "Objetivo: Sé el último jugador en pie.",
-            "Elimina a tus oponentes para ganar."
-        };
-        VBox textBox = new VBox(3);
-        textBox.setAlignment(Pos.CENTER);
-        for (String line : lines) {
-            Label l = new Label(line);
-            l.setStyle(OVERLAY_TEXT);
-            textBox.getChildren().add(l);
-        }
-
-        Button closeBtn = btn("Volver", Styles.ACCENT, Styles.ACCENT_HOVER, e -> toggleHelp());
-        overlay.getChildren().addAll(title, textBox, closeBtn);
         return overlay;
     }
 

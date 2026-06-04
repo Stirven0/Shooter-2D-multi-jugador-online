@@ -11,6 +11,8 @@ import com.aa.shared.message.GameEndMessage;
 import com.aa.shared.message.GameStateMessage;
 import com.aa.shared.message.IdleWarningMessage;
 import com.aa.shared.message.KickedIdleMessage;
+import com.aa.shared.message.MapDataMessage;
+import com.aa.shared.model.TileMap;
 import com.aa.shared.model.Player;
 import com.aa.shared.model.PowerUpPickup;
 import com.aa.shared.model.PowerUpType;
@@ -99,6 +101,18 @@ public class GameInstance {
         System.out.println("[GAME] GameInstance.start() called for " + gameId);
         state.setStatus(GameState.GameStatus.PLAYING);
         state.setStartTime(System.currentTimeMillis());
+
+        // Send tile map data once, not on every tick
+        TileMap tileMap = map.getTileMap();
+        if (tileMap != null) {
+            MapDataMessage mapDataMsg = new MapDataMessage(map.mapId(), tileMap);
+            if (messageSender != null) {
+                for (String pid : room.getPlayerIds()) {
+                    messageSender.accept(pid, mapDataMsg);
+                }
+            }
+        }
+
         loop.start();
         System.out.println("[GAME] GameInstance.start() loop thread started for " + gameId);
     }

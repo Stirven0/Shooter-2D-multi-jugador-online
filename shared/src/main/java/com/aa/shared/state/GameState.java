@@ -42,6 +42,7 @@ public class GameState {
     // Pickups
     private List<WeaponPickup> weaponPickups = Collections.emptyList();
     private List<PowerUpPickup> powerUpPickups = Collections.emptyList();
+
     
     public enum GameStatus {
         WAITING,    // Esperando jugadores
@@ -135,6 +136,7 @@ public class GameState {
     
     public List<PowerUpPickup> getPowerUpPickups() { return powerUpPickups; }
     public void setPowerUpPickups(List<PowerUpPickup> powerUpPickups) { this.powerUpPickups = powerUpPickups; }
+
     
     /**
      * Crea una copia superficial del estado para serialización.

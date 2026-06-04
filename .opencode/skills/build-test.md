@@ -48,6 +48,22 @@ mvn javafx:run -pl client
 java -jar mcp-bridge/target/mcp-bridge-1.0-SNAPSHOT.jar --username ai_player
 ```
 
+### Verify TMJ map loads correctly
+```bash
+# Check that TMJ parses without "No TMJ map found" in output
+mvn test -pl server 2>&1 | grep "TMJ map"
+```
+
+### Generate tile sprite sheet
+```bash
+python3 tools/generate_tileset.py
+```
+
+### Convert legacy JSON maps to TMJ
+```bash
+python3 tools/convert_map_to_tmj.py
+```
+
 ### Clean everything
 ```bash
 mvn clean
