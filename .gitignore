@@ -236,3 +236,6 @@ snapshots/debug/
 .idea/dataSources/
 .idea/dataSources.local.xml
 .worktrees/
+
+# Archivos generados de release
+release/
