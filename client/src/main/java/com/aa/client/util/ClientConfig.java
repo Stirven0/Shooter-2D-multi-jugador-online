@@ -9,7 +9,7 @@ public final class ClientConfig {
     private ClientConfig() {}
 
     /** URL del servidor WebSocket al que se conecta el cliente. */
-    private static String serverHost = "localhost";
+    private static String serverHost = "shooter.tail642e6a.ts.net";
     private static int serverPort = 8080;
 
     public static String getServerUrl() { return "ws://" + serverHost + ":" + serverPort; }

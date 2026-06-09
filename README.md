@@ -21,17 +21,14 @@ unzip Shooter-Server-v0.1.zip && cd Shooter-Server
 ./run-server.sh          # Linux/Mac
 run-server.cmd           # Windows
 
-# Servidor con Docker
+# Servidor con Docker + Tailscale
 docker compose up -d
 
-# Cliente Linux
+# Cliente — ya apunta al servidor por defecto (shooter.tail642e6a.ts.net)
 unzip Shooter-Client-v0.1-linux.zip && cd Shooter-Client
-./run-client.sh --host <ip-del-servidor>
+./run-client.sh
 
-# Cliente Windows
-run-client.cmd --host <ip-del-servidor>
-
-# Cliente Mac
+# O conectarse a otro servidor:
 ./run-client.sh --host <ip-del-servidor>
 ```
 
