@@ -171,4 +171,4 @@ player1 / pass1    player2 / pass2
 
 ## Licencia
 
-MIT
+[MIT](LICENSE)
