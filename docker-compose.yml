@@ -1,0 +1,8 @@
+services:
+  server:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./shooter.db:/app/shooter.db
+    restart: unless-stopped

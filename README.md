@@ -21,6 +21,9 @@ unzip Shooter-Server-v0.1.zip && cd Shooter-Server
 ./run-server.sh          # Linux/Mac
 run-server.cmd           # Windows
 
+# Servidor con Docker
+docker compose up -d
+
 # Cliente Linux
 unzip Shooter-Client-v0.1-linux.zip && cd Shooter-Client
 ./run-client.sh --host <ip-del-servidor>
