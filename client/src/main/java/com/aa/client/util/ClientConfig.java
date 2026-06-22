@@ -11,15 +11,26 @@ public final class ClientConfig {
     /** URL del servidor WebSocket al que se conecta el cliente. */
     private static String serverHost = "shooter.tail642e6a.ts.net";
     private static int serverPort = 8080;
+    private static boolean serverUseSsl = false;
 
-    public static String getServerUrl() { return "ws://" + serverHost + ":" + serverPort; }
+    public static String getServerUrl() {
+        String proto = serverUseSsl ? "wss" : "ws";
+        return proto + "://" + serverHost + ":" + serverPort;
+    }
     public static String getServerHost() { return serverHost; }
     public static int getServerPort() { return serverPort; }
+    public static boolean isServerUseSsl() { return serverUseSsl; }
     public static void setServerHost(String host) { serverHost = host; }
-    public static void setServerPort(String port) { serverPort = Integer.parseInt(port); }
+    public static void setServerPort(String port) {
+        int p = Integer.parseInt(port);
+        serverPort = p;
+        serverUseSsl = (p == 443 || p == 8443);
+    }
+    public static void setServerUseSsl(boolean ssl) { serverUseSsl = ssl; }
     public static void setServerUrl(String host, int port) {
         serverHost = host;
         serverPort = port;
+        serverUseSsl = (port == 443 || port == 8443);
     }
 
     private static String mcpHost = "localhost";

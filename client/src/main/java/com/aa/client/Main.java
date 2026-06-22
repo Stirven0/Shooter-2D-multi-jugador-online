@@ -54,6 +54,7 @@ public class Main extends Application {
                     String p = args[++i];
                     ClientConfig.setServerPort(p);
                 }
+                case "--ssl" -> ClientConfig.setServerUseSsl(true);
                 case "--hostmcp" -> ClientConfig.setMcpHost(args[++i]);
                 case "--portmcp" -> {
                     ClientConfig.setMcpPort(Integer.parseInt(args[++i]));

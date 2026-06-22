@@ -4,7 +4,7 @@
   <groupId>com.aa</groupId>
   <artifactId>multiplayer-game</artifactId>
   <packaging>pom</packaging>
-  <version>1.0-SNAPSHOT</version>
+  <version>0.2</version>
   <name>Multiplayer Shooter Game</name>
   <url>http://maven.apache.org</url>
   

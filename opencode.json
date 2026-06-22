@@ -23,9 +23,17 @@
       "description": "Tests UI del cliente (requiere Xvfb)",
       "template": "Ejecuta: Xvfb :99 -ac -screen 0 1280x720x24 & sleep 0.5 && DISPLAY=:99 mvn test -pl client"
     },
+    "package": {
+      "description": "Empaquetar server+cliente como .deb nativos",
+      "template": "Ejecuta: python3 tools/package-native.py"
+    },
+    "package-win": {
+      "description": "Empaquetar como instaladores Windows .exe (solo en Windows con WiX)",
+      "template": "Ejecuta: package-native.bat (Windows)"
+    },
     "run-server": {
       "description": "Iniciar servidor WebSocket en puerto 8080",
-      "template": "Ejecuta: java -jar server/target/server-1.0-SNAPSHOT.jar"
+      "template": "Ejecuta: java -jar server/target/server.jar"
     },
     "run-client": {
       "description": "Iniciar cliente JavaFX",

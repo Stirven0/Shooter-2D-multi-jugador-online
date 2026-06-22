@@ -9,14 +9,58 @@
 - Rama `tile-engine` para el motor de tiles TMJ (ya mergeada a `develop`).
 
 ## Quick start
+
+### Build (fat JARs)
 ```bash
-mvn clean install -DskipTests              # build & install (4 módulos: shared, server, client, mcp-bridge)
-java -jar server/target/server-1.0-SNAPSHOT.jar   # servidor :8080
-mvn javafx:run -pl client                  # lanzar cliente
-mvn javafx:run -pl client -Djavafx.args="--mcp"  # cliente en modo MCP
-java -jar mcp-bridge/target/mcp-bridge-1.0-SNAPSHOT.jar --username ai_player  # MCP bridge
-python3 tools/test_client.py                # bot headless (pip install websocket-client)
-python3 tools/load_test.py 5                # stress test (5 bots)
+mvn package -DskipTests                    # genera server.jar, client.jar, mcp-bridge.jar
+```
+
+### Run
+```bash
+./run-server.sh                            # servidor :8080 (SQLite por defecto)
+./run-client.sh                            # cliente con JavaFX
+./run-client.sh --mcp                      # cliente modo MCP
+./run-client.sh --host shooter.tail642e6a.ts.net --port 443  # conexión WSS por funnel
+
+# Alternativa directa sin launcher script (requiere JavaFX SDK en module-path):
+java -jar server/target/server.jar
+java --module-path $JAVAFX_HOME/lib --add-modules javafx.controls,javafx.fxml,javafx.media,javafx.swing -jar client/target/client.jar
+
+# MCP bridge standalone (no requiere JavaFX):
+java -jar mcp-bridge/target/mcp-bridge.jar --username ai_player
+
+# Bots headless (no requieren JavaFX):
+python3 tools/test_client.py               # pip install websocket-client
+python3 tools/load_test.py 5               # stress test (5 bots)
+
+### Native packages (instalables sin JDK)
+
+Crea un instalador con JRE + JavaFX embebido para Windows/Linux/macOS:
+
+```bash
+# Linux → .deb (requiere dpkg-dev)
+python3 tools/package-native.py
+
+# Windows → .exe (requiere WiX Toolset, ejecutar en Windows)
+python3 tools/package-native.py --type exe
+
+# Desde Windows, tambien funciona el .bat:
+package-native.bat
+
+# Solo servidor o solo cliente
+python3 tools/package-native.py --server-only
+python3 tools/package-native.py --client-only
+
+# Sin recompilar (si ya corriste mvn package)
+python3 tools/package-native.py --skip-build
+```
+
+El script resuelve JavaFX automáticamente desde el cache de Maven o `~/.javafx-sdk/25/`.
+Si no encuentra JavaFX, empaqueta solo el servidor. Pasar `--javafx-home <ruta>` para override.
+
+Paquetes generados en `dist/`:
+- `Shooter-Server.exe` / `shooter-server_1.0_amd64.deb` (66 MB)
+- `Shooter-Client.exe` / `shooter-client_1.0_amd64.deb` (89 MB)
 ```
 
 ## OpenCode shortcuts
@@ -25,7 +69,7 @@ Definidos en `opencode.json`:
 build          → mvn clean install -DskipTests
 test-server    → mvn test -pl server -Dtest="!*IntegrationTest"
 test-client    → mvn test -pl client
-run-server     → java -jar server/target/server-1.0-SNAPSHOT.jar
+run-server     → java -jar server/target/server.jar
 run-client     → mvn javafx:run -pl client
 ```
 
@@ -142,7 +186,8 @@ client/     → network/, game/, input/, render/, ui/, asset/, util/
 mcp-bridge/ → MCP bridge standalone (McpBridge.java + BridgeGameClient.java)
 .opencode/skills/ → 9 skills de desarrollo
 .opencode/rules/ → SOLID-RULES.md, TILE-RULES.md, MULTIPLAYER-RULES.md
-tools/      → Python test scripts (test_client.py, load_test.py, multi_client_test.py)
+tools/      → Python test scripts (test_client.py, load_test.py, multi_client_test.py) y package-native.py
+package-native.bat → Empaquetador nativo para Windows (jpackage + WiX)
 ```
 
 ## Adding new message types

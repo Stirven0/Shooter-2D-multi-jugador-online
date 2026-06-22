@@ -4,7 +4,7 @@ pip install websocket-client
 # 2. Asegurar que el servidor corre
 cd multiplayer-game
 mvn clean package -DskipTests
-java -jar server/target/server-1.0-SNAPSHOT.jar
+java -jar server/target/server.jar
 
 # 3. En otra terminal, ejecutar test client
 python tools/test_client.py
@@ -38,3 +38,11 @@ print("Mensaje enviado")  # → dispara onMessage en el servidor
 
 ws.close()
 print("Conexión cerrada") # → dispara onClose en el servidor
+
+# 5. Empaquetar instaladores nativos
+
+# Linux → .deb
+python3 tools/package-native.py
+
+# Windows → .exe (ejecutar en Windows con WiX Toolset)
+python3 tools/package-native.py --type exe
